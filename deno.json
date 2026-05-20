@@ -1,0 +1,29 @@
+{
+  "nodeModulesDir": "auto",
+  "imports": {
+    "@ai-sdk/google": "npm:@ai-sdk/google@^3.0.77",
+    "@libsql/client": "npm:@libsql/client@^0.17.3",
+    "@std/assert": "jsr:@std/assert@^1.0.19",
+    "@std/fs": "jsr:@std/fs@^1.0.23",
+    "@std/path": "jsr:@std/path@^1.1.4",
+    "@worlds/client": "jsr:@worlds/client@^0.0.1",
+    "@worlds/client/providers/libsql": "jsr:@worlds/client@^0.0.1/providers/libsql",
+    "ai": "npm:ai@^6.0.187",
+    "zod": "npm:zod@^4.4.3"
+  },
+  "tasks": {
+    "evals": "deno run -A --env ./evals/run-evals.ts",
+    "test": "deno test --allow-all --unstable-kv",
+    "fmt": "deno fmt",
+    "fmt:check": "deno fmt --check",
+    "lint": "deno lint",
+    "ci": {
+      "description": "Formats, lints, checks, and tests the code",
+      "dependencies": [
+        "fmt:check",
+        "lint",
+        "test"
+      ]
+    }
+  }
+}
