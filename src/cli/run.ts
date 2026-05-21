@@ -662,6 +662,23 @@ function printGoldenComparisonIssues(issues: GoldenComparisonIssue[]): void {
   }
 }
 
+/** isFatalApiError detects unrecoverable API failures that will affect all subsequent calls. */
+function isFatalApiError(errorMessage: string): boolean {
+  const fatalPatterns = [
+    "prepayment credits are depleted",
+    "quota exceeded",
+    "rate limit exceeded",
+    "api key not valid",
+    "api key invalid",
+    "authentication error",
+    "permission denied",
+    "billing account",
+    "payment required",
+  ];
+  const lowerMessage = errorMessage.toLowerCase();
+  return fatalPatterns.some((pattern) => lowerMessage.includes(pattern));
+}
+
 if (import.meta.main) {
   validateProviderId(providerId);
 
@@ -685,11 +702,17 @@ if (import.meta.main) {
 
   const trialSuiteResults: EvalSuiteResult[] = [];
 
+  let fatalError: string | undefined;
+
   for (
     let trialIndex = 0;
     trialIndex < cliOptions.trialCount;
     trialIndex += 1
   ) {
+    if (fatalError) {
+      break;
+    }
+
     if (cliOptions.trialCount > 1) {
       console.log(`Trial ${trialIndex + 1}/${cliOptions.trialCount}`);
       console.log("");
@@ -697,7 +720,20 @@ if (import.meta.main) {
 
     const results = [];
     for (const testCase of selectedEvalCases) {
+      if (fatalError) {
+        break;
+      }
+
       const rawResult = await runEvalCase(testCase, { providerId, modelId });
+
+      if (rawResult.error && isFatalApiError(rawResult.error)) {
+        fatalError = rawResult.error;
+        console.log(
+          `\nFatal API error detected — aborting run: ${rawResult.error}`,
+        );
+        break;
+      }
+
       results.push(applyAssertions(rawResult));
     }
 
@@ -708,6 +744,12 @@ if (import.meta.main) {
       success: results.every((result) => result.success),
       results,
     });
+  }
+
+  if (fatalError) {
+    console.log(`\nRun aborted due to fatal API error: ${fatalError}`);
+    Deno.exitCode = 2;
+    Deno.exit();
   }
 
   const suiteResult = trialSuiteResults[trialSuiteResults.length - 1];

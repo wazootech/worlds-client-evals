@@ -53,4 +53,10 @@ jobs:
           if [ -n "$MIN_PASS_RATE" ]; then
             ARGS+=(--min-pass-rate "$MIN_PASS_RATE")
           fi
-          deno task evals -- "${ARGS[@]}"
+          deno task evals -- "${ARGS[@]}" || {
+            EXIT_CODE=$?
+            if [ $EXIT_CODE -eq 2 ]; then
+              echo "::error::Eval run aborted due to fatal API error (billing/quota/auth). Check GOOGLE_GENERATIVE_AI_API_KEY secret and Google AI Studio billing status."
+            fi
+            exit $EXIT_CODE
+          }
