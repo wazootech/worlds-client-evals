@@ -82,12 +82,12 @@ API key.
 The [Agent evals](.github/workflows/evals.yml) workflow uploads `results/*.json`
 as a workflow artifact for each credentialed run. Generated trajectories are not
 committed and do not open pull requests. The workflow also publishes a
-best-effort GitHub Discussion in the `Eval reports` category with links to the
-workflow run and artifact.
+best-effort GitHub Discussion in the `Evals` category with links to the workflow
+run and artifact.
 
 Repository setup: enable GitHub Discussions and create a dedicated category
-named `Eval reports`. If the category is missing, CI still uploads artifacts and
-skips discussion publication with a warning.
+named `Evals`. If the category is missing, CI still uploads artifacts and skips
+discussion publication with a warning.
 
 ## Evaluation Policy
 

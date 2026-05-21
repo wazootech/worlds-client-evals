@@ -5,7 +5,7 @@ permissions:
   discussions: write
 
 env:
-  EVAL_DISCUSSION_CATEGORY: Eval reports
+  EVAL_DISCUSSION_CATEGORY: Evals
 
 on:
   schedule:

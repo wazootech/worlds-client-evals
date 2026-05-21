@@ -40,17 +40,17 @@ expected pattern is `searchWorld` followed by `executeSparql`.
 
 The [Agent evals](.github/workflows/evals.yml) workflow is the credentialed
 baseline runner. After each live run it uploads `results/*.json` as a workflow
-artifact and publishes a best-effort GitHub Discussion in the `Eval reports`
-category when that category exists. Generated trajectories are not committed to
-this repository.
+artifact and publishes a best-effort GitHub Discussion in the `Evals` category
+when that category exists. Generated trajectories are not committed to this
+repository.
 
 The workflow job may exit non-zero when assertions or pass-rate gates fail even
 though the results artifact was uploaded. Treat assertion results as the health
 signal; artifacts are trajectory evidence only.
 
 Repository prerequisite: GitHub Discussions must be enabled with a dedicated
-category named `Eval reports`. If the category is missing, artifact upload still
-works and discussion publication is skipped with a warning.
+category named `Evals`. If the category is missing, artifact upload still works
+and discussion publication is skipped with a warning.
 
 ## Declarative clarity and naming conventions
 
