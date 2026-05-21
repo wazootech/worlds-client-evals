@@ -4,11 +4,18 @@ import { dirname, fromFileUrl, join } from "@std/path";
 import { applyAssertions } from "../assertions/index.ts";
 import { evalCases } from "../cases/index.ts";
 import { runEvalCase } from "../runner/agent-runner.ts";
+import {
+  defaultToolConfigId,
+  resolveToolConfig,
+  resolveToolConfigs,
+} from "../tool-configs/index.ts";
+import type { ToolConfig } from "../tool-configs/types.ts";
 import type {
   EvalAssertionPassRate,
   EvalCaseDefinition,
   EvalCasePassRate,
   EvalCaseResult,
+  EvalCompareResult,
   EvalStatsResult,
   EvalSuiteResult,
 } from "../types.ts";
@@ -24,6 +31,8 @@ interface EvalCliOptions {
   permitNoFiles: boolean;
   trialCount: number;
   minPassRate?: number;
+  toolConfigId: string;
+  compareToolConfigIds?: string[];
 }
 
 /** validateProviderId prevents mislabeled provider metadata in eval results. */
@@ -90,14 +99,14 @@ function parsePassRateOption(
 export function parseCliOptions(args: string[]): EvalCliOptions {
   const parsedArgs = parseArgs(args, {
     boolean: ["list", "permit-no-files"],
-    string: ["filter", "trials", "min-pass-rate"],
+    string: ["filter", "trials", "min-pass-rate", "tool-config", "compare"],
     unknown: (argument) => {
       if (argument === "--") {
         return true;
       }
 
       throw new Error(
-        `Unsupported argument: ${argument}. Supported flags: --filter <pattern>, --list, --permit-no-files, --trials <N>, --min-pass-rate <0-1>`,
+        `Unsupported argument: ${argument}. Supported flags: --filter <pattern>, --list, --permit-no-files, --trials <N>, --min-pass-rate <0-1>, --tool-config <name>, --compare <a,b>`,
       );
     },
   });
@@ -106,7 +115,7 @@ export function parseCliOptions(args: string[]): EvalCliOptions {
     throw new Error(
       `Unsupported argument: ${
         parsedArgs._[0]
-      }. Supported flags: --filter <pattern>, --list, --permit-no-files, --trials <N>, --min-pass-rate <0-1>`,
+      }. Supported flags: --filter <pattern>, --list, --permit-no-files, --trials <N>, --min-pass-rate <0-1>, --tool-config <name>, --compare <a,b>`,
     );
   }
 
@@ -120,6 +129,21 @@ export function parseCliOptions(args: string[]): EvalCliOptions {
   const minPassRate = parsedArgs["min-pass-rate"]
     ? parsePassRateOption("--min-pass-rate", parsedArgs["min-pass-rate"])
     : undefined;
+  const toolConfigId = parsedArgs["tool-config"] ?? defaultToolConfigId;
+  const compareToolConfigIds = parsedArgs.compare
+    ? parsedArgs.compare.split(",").map((toolConfigId) => toolConfigId.trim())
+      .filter((toolConfigId) => toolConfigId.length > 0)
+    : undefined;
+
+  if (compareToolConfigIds && compareToolConfigIds.length < 2) {
+    throw new Error("--compare must include at least two tool config ids");
+  }
+  if (
+    compareToolConfigIds &&
+    new Set(compareToolConfigIds).size !== compareToolConfigIds.length
+  ) {
+    throw new Error("--compare tool config ids must be unique");
+  }
 
   if (!Number.isFinite(trialCount) || trialCount < 1) {
     trialCount = 1;
@@ -132,6 +156,8 @@ export function parseCliOptions(args: string[]): EvalCliOptions {
     permitNoFiles,
     trialCount,
     minPassRate,
+    toolConfigId,
+    compareToolConfigIds,
   };
 }
 
@@ -158,29 +184,68 @@ function printAvailableCases(cases: EvalCaseDefinition[]): void {
   }
 }
 
+/** buildResultFileName creates a stable JSON file name for result artifacts. */
+function buildResultFileName(baseName: string, suffix?: string): string {
+  if (!suffix) {
+    return `${baseName}.json`;
+  }
+
+  const safeSuffix = suffix.replaceAll(/[^a-zA-Z0-9_.-]/g, "-");
+  return `${baseName}-${safeSuffix}.json`;
+}
+
 /** writeResults persists the latest eval suite report to disk. */
-async function writeResults(result: EvalSuiteResult): Promise<string> {
+async function writeResults(
+  result: EvalSuiteResult,
+  suffix?: string,
+): Promise<string> {
   const repositoryRoot = join(
     dirname(fromFileUrl(import.meta.url)),
     "..",
     "..",
   );
   const resultsDirectory = join(repositoryRoot, "results");
-  const outputPath = join(resultsDirectory, "latest.json");
+  const outputPath = join(
+    resultsDirectory,
+    buildResultFileName("latest", suffix),
+  );
   await ensureDir(resultsDirectory);
   await Deno.writeTextFile(outputPath, JSON.stringify(result, null, 2));
   return outputPath;
 }
 
 /** writeStatsResults persists aggregated multi-trial pass rates to disk. */
-async function writeStatsResults(result: EvalStatsResult): Promise<string> {
+async function writeStatsResults(
+  result: EvalStatsResult,
+  suffix?: string,
+): Promise<string> {
   const repositoryRoot = join(
     dirname(fromFileUrl(import.meta.url)),
     "..",
     "..",
   );
   const resultsDirectory = join(repositoryRoot, "results");
-  const outputPath = join(resultsDirectory, "stats-latest.json");
+  const outputPath = join(
+    resultsDirectory,
+    buildResultFileName("stats-latest", suffix),
+  );
+  await ensureDir(resultsDirectory);
+  await Deno.writeTextFile(outputPath, JSON.stringify(result, null, 2));
+  return outputPath;
+}
+
+/** writeCompareResults persists side-by-side tool config comparison data. */
+async function writeCompareResults(result: EvalCompareResult): Promise<string> {
+  const repositoryRoot = join(
+    dirname(fromFileUrl(import.meta.url)),
+    "..",
+    "..",
+  );
+  const resultsDirectory = join(repositoryRoot, "results");
+  const outputPath = join(
+    resultsDirectory,
+    buildResultFileName("compare", result.toolConfigIds.join("-vs-")),
+  );
   await ensureDir(resultsDirectory);
   await Deno.writeTextFile(outputPath, JSON.stringify(result, null, 2));
   return outputPath;
@@ -192,6 +257,7 @@ function aggregateEvalStats(
   trialResults: EvalCaseResult[][],
   provider: string,
   model: string,
+  toolConfigId: string,
   minPassRate?: number,
 ): EvalStatsResult {
   const casePassRates: EvalCasePassRate[] = selectedCases.map((testCase) => {
@@ -255,6 +321,7 @@ function aggregateEvalStats(
   return {
     providerId: provider,
     modelId: model,
+    toolConfigId,
     timestamp: new Date().toISOString(),
     trialCount: trialResults.length,
     minPassRate,
@@ -265,6 +332,9 @@ function aggregateEvalStats(
 
 /** printStatsSummary renders aggregated pass rates for multi-trial runs. */
 function printStatsSummary(statsResult: EvalStatsResult): void {
+  if (statsResult.toolConfigId) {
+    console.log(`Tool config: ${statsResult.toolConfigId}`);
+  }
   console.log(`Trials per case: ${statsResult.trialCount}`);
   if (statsResult.minPassRate !== undefined) {
     console.log(`Minimum pass rate: ${statsResult.minPassRate}`);
@@ -294,6 +364,9 @@ function printStatsSummary(statsResult: EvalStatsResult): void {
 function printSummary(result: EvalSuiteResult): void {
   console.log(`Provider: ${result.providerId}`);
   console.log(`Model: ${result.modelId}`);
+  if (result.toolConfigId) {
+    console.log(`Tool config: ${result.toolConfigId}`);
+  }
   console.log(`Suite success: ${result.success}`);
   console.log("");
 
@@ -335,6 +408,138 @@ function isFatalApiError(errorMessage: string): boolean {
   return fatalPatterns.some((pattern) => lowerMessage.includes(pattern));
 }
 
+/** EvalToolConfigRunResult stores one tool config's suite and stats outputs. */
+interface EvalToolConfigRunResult {
+  suiteResult: EvalSuiteResult;
+  statsResult?: EvalStatsResult;
+  fatalError?: string;
+}
+
+/** runEvalSuiteForToolConfig runs selected cases against one named tool set. */
+async function runEvalSuiteForToolConfig(
+  selectedEvalCases: EvalCaseDefinition[],
+  cliOptions: EvalCliOptions,
+  toolConfig: ToolConfig,
+): Promise<EvalToolConfigRunResult> {
+  const trialSuiteResults: EvalSuiteResult[] = [];
+  let fatalError: string | undefined;
+
+  for (
+    let trialIndex = 0;
+    trialIndex < cliOptions.trialCount;
+    trialIndex += 1
+  ) {
+    if (fatalError) {
+      break;
+    }
+
+    if (cliOptions.trialCount > 1) {
+      console.log(
+        `[${toolConfig.id}] Trial ${trialIndex + 1}/${cliOptions.trialCount}`,
+      );
+      console.log("");
+    }
+
+    const results = [];
+    for (const testCase of selectedEvalCases) {
+      if (fatalError) {
+        break;
+      }
+
+      const rawResult = await runEvalCase(testCase, {
+        providerId,
+        modelId,
+        toolConfig,
+      });
+
+      if (rawResult.error && isFatalApiError(rawResult.error)) {
+        fatalError = rawResult.error;
+        console.log(
+          `\nFatal API error detected — aborting run: ${rawResult.error}`,
+        );
+        break;
+      }
+
+      results.push(applyAssertions(rawResult, toolConfig));
+    }
+
+    trialSuiteResults.push({
+      providerId,
+      modelId,
+      toolConfigId: toolConfig.id,
+      timestamp: new Date().toISOString(),
+      success: results.every((result) => result.success),
+      results,
+    });
+  }
+
+  const suiteResult = trialSuiteResults[trialSuiteResults.length - 1];
+  const shouldAggregateStats = cliOptions.trialCount > 1 ||
+    cliOptions.compareToolConfigIds !== undefined;
+  const statsResult = shouldAggregateStats
+    ? aggregateEvalStats(
+      selectedEvalCases,
+      trialSuiteResults.map((trial) => trial.results),
+      providerId,
+      modelId,
+      toolConfig.id,
+      cliOptions.minPassRate,
+    )
+    : undefined;
+
+  return { suiteResult, statsResult, fatalError };
+}
+
+/** buildCompareResult creates side-by-side stats for multiple tool configs. */
+function buildCompareResult(
+  selectedEvalCases: EvalCaseDefinition[],
+  statsResults: EvalStatsResult[],
+  cliOptions: EvalCliOptions,
+): EvalCompareResult {
+  return {
+    providerId,
+    modelId,
+    timestamp: new Date().toISOString(),
+    trialCount: cliOptions.trialCount,
+    minPassRate: cliOptions.minPassRate,
+    toolConfigIds: statsResults.map((statsResult) =>
+      statsResult.toolConfigId ?? defaultToolConfigId
+    ),
+    statsResults,
+    caseComparisons: selectedEvalCases.map((testCase) => ({
+      id: testCase.id,
+      description: testCase.description,
+      passRatesByToolConfig: Object.fromEntries(
+        statsResults.flatMap((statsResult) => {
+          const casePassRate = statsResult.casePassRates.find((entry) =>
+            entry.id === testCase.id
+          );
+          const toolConfigId = statsResult.toolConfigId ?? defaultToolConfigId;
+          return casePassRate ? [[toolConfigId, casePassRate]] : [];
+        }),
+      ),
+    })),
+  };
+}
+
+/** printCompareSummary renders a compact terminal comparison table. */
+function printCompareSummary(compareResult: EvalCompareResult): void {
+  console.log(`Tool configs: ${compareResult.toolConfigIds.join(", ")}`);
+  console.log(`Trials per case: ${compareResult.trialCount}`);
+  console.log("");
+
+  for (const comparison of compareResult.caseComparisons) {
+    const rates = compareResult.toolConfigIds.map((toolConfigId) => {
+      const casePassRate = comparison.passRatesByToolConfig[toolConfigId];
+      const percentage = casePassRate
+        ? `${(casePassRate.passRate * 100).toFixed(1)}%`
+        : "n/a";
+      return `${toolConfigId}=${percentage}`;
+    });
+    console.log(`${comparison.id}: ${rates.join(", ")}`);
+  }
+}
+
 if (import.meta.main) {
   validateProviderId(providerId);
 
@@ -356,85 +561,94 @@ if (import.meta.main) {
     throw new Error(message);
   }
 
-  const trialSuiteResults: EvalSuiteResult[] = [];
+  if (cliOptions.compareToolConfigIds) {
+    const toolConfigs = resolveToolConfigs(cliOptions.compareToolConfigIds);
+    const statsResults: EvalStatsResult[] = [];
+    let compareFailed = false;
 
-  let fatalError: string | undefined;
-
-  for (
-    let trialIndex = 0;
-    trialIndex < cliOptions.trialCount;
-    trialIndex += 1
-  ) {
-    if (fatalError) {
-      break;
-    }
-
-    if (cliOptions.trialCount > 1) {
-      console.log(`Trial ${trialIndex + 1}/${cliOptions.trialCount}`);
-      console.log("");
-    }
-
-    const results = [];
-    for (const testCase of selectedEvalCases) {
-      if (fatalError) {
-        break;
-      }
-
-      const rawResult = await runEvalCase(testCase, { providerId, modelId });
-
-      if (rawResult.error && isFatalApiError(rawResult.error)) {
-        fatalError = rawResult.error;
+    for (const toolConfig of toolConfigs) {
+      const runResult = await runEvalSuiteForToolConfig(
+        selectedEvalCases,
+        cliOptions,
+        toolConfig,
+      );
+      if (runResult.fatalError) {
         console.log(
-          `\nFatal API error detected — aborting run: ${rawResult.error}`,
+          `\nRun aborted due to fatal API error: ${runResult.fatalError}`,
         );
-        break;
+        Deno.exitCode = 2;
+        Deno.exit();
       }
 
-      results.push(applyAssertions(rawResult));
+      const latestOutputPath = await writeResults(
+        runResult.suiteResult,
+        toolConfig.id,
+      );
+      console.log(`Wrote ${toolConfig.id} results to ${latestOutputPath}`);
+
+      if (runResult.statsResult) {
+        statsResults.push(runResult.statsResult);
+        const statsOutputPath = await writeStatsResults(
+          runResult.statsResult,
+          toolConfig.id,
+        );
+        console.log(
+          `Wrote ${toolConfig.id} statistical results to ${statsOutputPath}`,
+        );
+        if (!runResult.statsResult.success) {
+          compareFailed = true;
+        }
+      } else if (!runResult.suiteResult.success) {
+        compareFailed = true;
+      }
     }
 
-    trialSuiteResults.push({
-      providerId,
-      modelId,
-      timestamp: new Date().toISOString(),
-      success: results.every((result) => result.success),
-      results,
-    });
+    const compareResult = buildCompareResult(
+      selectedEvalCases,
+      statsResults,
+      cliOptions,
+    );
+    printCompareSummary(compareResult);
+    const compareOutputPath = await writeCompareResults(compareResult);
+    console.log(`Wrote comparison results to ${compareOutputPath}`);
+
+    if (compareFailed) {
+      Deno.exitCode = 1;
+    }
+    Deno.exit();
   }
 
-  if (fatalError) {
-    console.log(`\nRun aborted due to fatal API error: ${fatalError}`);
+  const toolConfig = resolveToolConfig(cliOptions.toolConfigId);
+  const runResult = await runEvalSuiteForToolConfig(
+    selectedEvalCases,
+    cliOptions,
+    toolConfig,
+  );
+
+  if (runResult.fatalError) {
+    console.log(
+      `\nRun aborted due to fatal API error: ${runResult.fatalError}`,
+    );
     Deno.exitCode = 2;
     Deno.exit();
   }
 
-  const suiteResult = trialSuiteResults[trialSuiteResults.length - 1];
-  const statsResult = cliOptions.trialCount > 1
-    ? aggregateEvalStats(
-      selectedEvalCases,
-      trialSuiteResults.map((trial) => trial.results),
-      providerId,
-      modelId,
-      cliOptions.minPassRate,
-    )
-    : undefined;
-
-  if (statsResult) {
-    printStatsSummary(statsResult);
-    const statsOutputPath = await writeStatsResults(statsResult);
+  if (runResult.statsResult) {
+    printStatsSummary(runResult.statsResult);
+    const statsOutputPath = await writeStatsResults(runResult.statsResult);
     console.log(`Wrote statistical results to ${statsOutputPath}`);
   } else {
-    printSummary(suiteResult);
+    printSummary(runResult.suiteResult);
   }
 
-  const outputPath = await writeResults(suiteResult);
+  const outputPath = await writeResults(runResult.suiteResult);
   console.log(`Wrote results to ${outputPath}`);
 
-  if (statsResult) {
-    if (!statsResult.success) {
+  if (runResult.statsResult) {
+    if (!runResult.statsResult.success) {
       Deno.exitCode = 1;
     }
-  } else if (!suiteResult.success) {
+  } else if (!runResult.suiteResult.success) {
     Deno.exitCode = 1;
   }
 }
