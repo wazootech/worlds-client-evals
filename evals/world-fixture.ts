@@ -1,5 +1,7 @@
 import { createClient as createLibsqlClient } from "@libsql/client";
+import { QueryEngine } from "@comunica/query-sparql-rdfjs-lite";
 import { Client } from "@worlds/client";
+import { ComunicaSparqlEngine } from "@worlds/client/providers/comunica";
 import { provideLibsql } from "@worlds/client/providers/libsql";
 
 /** GENID_BASE is the production-style skolem prefix for eval fixture entities. */
@@ -72,7 +74,12 @@ const SEEDED_WORLD_DATA = `
 /** createSeededWorldClient builds a fresh in-memory world with the seeded graph. */
 export async function createSeededWorldClient(): Promise<Client> {
   const database = createLibsqlClient({ url: ":memory:" });
-  const providerOptions = await provideLibsql({ client: database });
+  const queryEngine = new QueryEngine();
+  const providerOptions = await provideLibsql({
+    client: database,
+    createSparqlEngine: ({ store }) =>
+      new ComunicaSparqlEngine({ queryEngine, store }),
+  });
   const client = new Client(providerOptions);
 
   await client.import({

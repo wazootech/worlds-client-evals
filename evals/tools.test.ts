@@ -1,5 +1,11 @@
 import { assertEquals, assertFalse } from "@std/assert";
-import { isReadOnlySparqlQuery } from "./tools.ts";
+import { createEvalTools, isReadOnlySparqlQuery } from "./tools.ts";
+import {
+  createSeededWorldClient,
+  EXPECTED_HOUSE_LITERAL,
+  PROTAGONIST_SUBJECT_URI,
+  WAZOO_VOCAB_NAMESPACE,
+} from "./world-fixture.ts";
 
 const READ_ONLY_QUERIES = [
   "SELECT ?s WHERE { ?s ?p ?o }",
@@ -35,3 +41,27 @@ for (const query of MUTATING_OR_INVALID_QUERIES) {
     assertFalse(isReadOnlySparqlQuery(query));
   });
 }
+
+Deno.test("executeSparql runs SELECT queries against the seeded Worlds client", async () => {
+  const client = await createSeededWorldClient();
+  const tools = createEvalTools(client);
+  const result = await tools.executeSparql.execute?.({
+    query:
+      `SELECT ?house WHERE { <${PROTAGONIST_SUBJECT_URI}> <${WAZOO_VOCAB_NAMESPACE}house> ?house . }`,
+  }, {
+    toolCallId: "test-sparql",
+    messages: [],
+  });
+
+  assertEquals(result, {
+    success: true,
+    data: {
+      head: { vars: ["house"], link: undefined },
+      results: {
+        bindings: [{
+          house: { type: "literal", value: EXPECTED_HOUSE_LITERAL },
+        }],
+      },
+    },
+  });
+});

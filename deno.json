@@ -2,16 +2,22 @@
   "nodeModulesDir": "auto",
   "imports": {
     "@ai-sdk/google": "npm:@ai-sdk/google@^3.0.77",
+    "@comunica/query-sparql-rdfjs-lite": "npm:@comunica/query-sparql-rdfjs-lite@^5.2.2",
     "@libsql/client": "npm:@libsql/client@^0.17.3",
     "@std/assert": "jsr:@std/assert@^1.0.19",
     "@std/fs": "jsr:@std/fs@^1.0.23",
     "@std/path": "jsr:@std/path@^1.1.4",
-    "@worlds/client": "jsr:@worlds/client@^0.0.1",
-    "@worlds/client/providers/libsql": "jsr:@worlds/client@^0.0.1/providers/libsql",
+    "@worlds/client": "jsr:@worlds/client@^0.0.2",
+    "@worlds/client/providers/libsql": "jsr:@worlds/client@^0.0.2/providers/libsql",
     "ai": "npm:ai@^6.0.187",
-    "cross-fetch": "npm:cross-fetch@^3.1.8",
     "zod": "npm:zod@^4.4.3"
   },
+  "links": [
+    "./vendor/jsonld-context-parser"
+  ],
+  "exclude": [
+    "vendor/jsonld-context-parser/**"
+  ],
   "tasks": {
     "evals": "deno run -A --env ./evals/run-evals.ts",
     "test": "deno test --allow-all --unstable-kv",
