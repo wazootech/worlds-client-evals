@@ -92,11 +92,12 @@ record for review.
 One-time repository setup: under **Settings → Actions → General → Workflow
 permissions**, enable **Allow GitHub Actions to create and approve pull
 requests**. Without this, the workflow can push the journal branch but cannot
-open the PR. Org admins can also enable it via API:
+open the PR. Org admins can enable the same setting with the GitHub API
+(requires `admin:repo_hook` or repo admin access):
 
 ```bash
-gh api --method PUT "repos/OWNER/REPO/actions/permissions/workflow" \
-  --input - <<< '{"default_workflow_permissions":"write","can_approve_pull_request_reviews":true}'
+echo '{"default_workflow_permissions":"write","can_approve_pull_request_reviews":true}' \
+  | gh api --method PUT "repos/OWNER/REPO/actions/permissions/workflow" --input -
 ```
 
 ## Evaluation Policy
