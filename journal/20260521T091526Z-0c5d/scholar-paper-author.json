@@ -1,0 +1,144 @@
+{
+  "id": "scholar-paper-author",
+  "description": "Scholar fixture resolves author literal via search then SPARQL",
+  "prompt": "Find the author of the paper with label \"kL9mN4pQ\". First call searchWorld with exactly \"kL9mN4pQ\". Then use one executeSparql SELECT that reads the vocab:author from the discovered paper URI. Answer with only the author literal.",
+  "output": "dR7sT2vW",
+  "success": true,
+  "metadata": {
+    "providerId": "google",
+    "modelId": "gemini-3.1-flash-lite",
+    "stepCount": 4,
+    "finishReason": "stop",
+    "trajectory": [
+      {
+        "stepIndex": 0,
+        "toolName": "searchWorld",
+        "args": {
+          "query": "kL9mN4pQ"
+        },
+        "result": {
+          "success": true,
+          "results": [
+            {
+              "id": "PGh0dHBzOi8vd29ybGRzLndhem9vLmRldi8ud2VsbC1rbm93bi9nZW5pZC9hMWIyYzNkNGU1ZjZhN2I4PiA8aHR0cDovL3d3dy53My5vcmcvMjAwMC8wMS9yZGYtc2NoZW1hI2xhYmVsPiAia0w5bU40cFEiIC4K",
+              "subject": "https://worlds.wazoo.dev/.well-known/genid/a1b2c3d4e5f6a7b8",
+              "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+              "graph": "",
+              "text": "kL9mN4pQ",
+              "score": 0.01639344262295082
+            }
+          ]
+        }
+      },
+      {
+        "stepIndex": 1,
+        "toolName": "executeSparql",
+        "args": {
+          "query": "SELECT ?author WHERE { <https://worlds.wazoo.dev/.well-known/genid/a1b2c3d4e5f6a7b8> <http://worlds.wazoo.dev/vocab/author> ?author . }"
+        },
+        "result": {
+          "success": true,
+          "data": {
+            "head": {
+              "vars": [
+                "author"
+              ]
+            },
+            "results": {
+              "bindings": []
+            }
+          }
+        }
+      },
+      {
+        "stepIndex": 2,
+        "toolName": "executeSparql",
+        "args": {
+          "query": "SELECT ?p ?o WHERE { <https://worlds.wazoo.dev/.well-known/genid/a1b2c3d4e5f6a7b8> ?p ?o . }"
+        },
+        "result": {
+          "success": true,
+          "data": {
+            "head": {
+              "vars": [
+                "p",
+                "o"
+              ]
+            },
+            "results": {
+              "bindings": [
+                {
+                  "p": {
+                    "type": "uri",
+                    "value": "http://www.w3.org/2000/01/rdf-schema#label"
+                  },
+                  "o": {
+                    "type": "literal",
+                    "value": "kL9mN4pQ"
+                  }
+                },
+                {
+                  "p": {
+                    "type": "uri",
+                    "value": "https://worlds.wazoo.dev/vocab/author"
+                  },
+                  "o": {
+                    "type": "literal",
+                    "value": "dR7sT2vW"
+                  }
+                },
+                {
+                  "p": {
+                    "type": "uri",
+                    "value": "https://worlds.wazoo.dev/vocab/venue"
+                  },
+                  "o": {
+                    "type": "literal",
+                    "value": "xY5zA8bC"
+                  }
+                },
+                {
+                  "p": {
+                    "type": "uri",
+                    "value": "https://worlds.wazoo.dev/vocab/year"
+                  },
+                  "o": {
+                    "type": "literal",
+                    "value": "2024"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "name": "used-required-tools",
+      "pass": true
+    },
+    {
+      "name": "search-before-sparql",
+      "pass": true
+    },
+    {
+      "name": "sparql-handoff-valid",
+      "pass": true
+    },
+    {
+      "name": "step-count-bounded",
+      "pass": true
+    },
+    {
+      "name": "final-answer-author-correct",
+      "pass": true
+    }
+  ],
+  "toolSequence": [
+    "searchWorld",
+    "executeSparql",
+    "executeSparql"
+  ]
+}

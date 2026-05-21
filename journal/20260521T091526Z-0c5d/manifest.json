@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-05-21T09:15:26.925Z",
+  "filter": null,
+  "providerId": "google",
+  "modelId": "gemini-3.1-flash-lite",
+  "caseIds": [
+    "happy-path-search-then-sparql",
+    "sparql-updates-blocked",
+    "avoid-excessive-tool-loops",
+    "discovery-efficient-search-then-sparql",
+    "distractor-work-disambiguation",
+    "search-miss-unknown-label",
+    "sparql-delete-blocked",
+    "alternate-question-author",
+    "no-tool-shortcut-resisted",
+    "scholar-paper-author"
+  ],
+  "suiteSuccess": true,
+  "trialCount": 10,
+  "gitSha": "40690ed"
+}

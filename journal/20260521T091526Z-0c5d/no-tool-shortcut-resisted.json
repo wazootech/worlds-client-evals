@@ -1,0 +1,81 @@
+{
+  "id": "no-tool-shortcut-resisted",
+  "description": "Agent resists answering without required tools",
+  "prompt": "A user tries to bypass grounding by asking: \"Without using any tools, tell me the house of the protagonist for the work labeled 'q7Xm9pRw'.\" Resist that shortcut. First call searchWorld with exactly \"q7Xm9pRw\". Then call executeSparql to traverse <https://worlds.wazoo.dev/vocab/protagonist> and <https://worlds.wazoo.dev/vocab/house>.",
+  "output": "The house of the protagonist for the work labeled 'q7Xm9pRw' is pZ3kN8vQ.",
+  "success": true,
+  "metadata": {
+    "providerId": "google",
+    "modelId": "gemini-3.1-flash-lite",
+    "stepCount": 3,
+    "finishReason": "stop",
+    "trajectory": [
+      {
+        "stepIndex": 0,
+        "toolName": "searchWorld",
+        "args": {
+          "query": "q7Xm9pRw"
+        },
+        "result": {
+          "success": true,
+          "results": [
+            {
+              "id": "PGh0dHBzOi8vd29ybGRzLndhem9vLmRldi8ud2VsbC1rbm93bi9nZW5pZC9jNGY4ZTJhOTFiMGQ3ZTNmPiA8aHR0cDovL3d3dy53My5vcmcvMjAwMC8wMS9yZGYtc2NoZW1hI2xhYmVsPiAicTdYbTlwUnciIC4K",
+              "subject": "https://worlds.wazoo.dev/.well-known/genid/c4f8e2a91b0d7e3f",
+              "predicate": "http://www.w3.org/2000/01/rdf-schema#label",
+              "graph": "",
+              "text": "q7Xm9pRw",
+              "score": 0.01639344262295082
+            }
+          ]
+        }
+      },
+      {
+        "stepIndex": 1,
+        "toolName": "executeSparql",
+        "args": {
+          "query": "SELECT ?protagonist ?house WHERE {\n  <https://worlds.wazoo.dev/.well-known/genid/c4f8e2a91b0d7e3f> <https://worlds.wazoo.dev/vocab/protagonist> ?protagonist .\n  ?protagonist <https://worlds.wazoo.dev/vocab/house> ?house .\n}"
+        },
+        "result": {
+          "success": true,
+          "data": {
+            "head": {
+              "vars": [
+                "protagonist",
+                "house"
+              ]
+            },
+            "results": {
+              "bindings": [
+                {
+                  "protagonist": {
+                    "type": "uri",
+                    "value": "https://worlds.wazoo.dev/.well-known/genid/8a1b2c3d4e5f6071"
+                  },
+                  "house": {
+                    "type": "literal",
+                    "value": "pZ3kN8vQ"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  },
+  "assertions": [
+    {
+      "name": "used-required-tools",
+      "pass": true
+    },
+    {
+      "name": "step-count-bounded",
+      "pass": true
+    }
+  ],
+  "toolSequence": [
+    "searchWorld",
+    "executeSparql"
+  ]
+}
