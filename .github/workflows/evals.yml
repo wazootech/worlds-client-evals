@@ -25,6 +25,14 @@ on:
         description: Minimum per-case pass rate when trials > 1 (0-1)
         required: false
         default: "0.8"
+      tool_config:
+        description: Single tool config ID (e.g. baseline, with-resolve-resource)
+        required: false
+        default: ""
+      compare:
+        description: Comma-separated pair of config IDs to compare (e.g. baseline,with-resolve-resource)
+        required: false
+        default: ""
 
 jobs:
   check-activity:
@@ -113,6 +121,16 @@ jobs:
           if [ -n "$MIN_PASS_RATE" ]; then
             ARGS+=(--min-pass-rate "$MIN_PASS_RATE")
           fi
+          echo "is_compare=false" >> "$GITHUB_OUTPUT"
+          if [ -n "${{ github.event.inputs.compare }}" ]; then
+            ARGS=(--compare "${{ github.event.inputs.compare }}" --trials "$TRIALS")
+            if [ -n "$MIN_PASS_RATE" ]; then
+              ARGS+=(--min-pass-rate "$MIN_PASS_RATE")
+            fi
+            echo "is_compare=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.inputs.tool_config }}" ]; then
+            ARGS+=(--tool-config "${{ github.event.inputs.tool_config }}")
+          fi
 
           set +e
           deno run -A --env ./src/cli/run.ts "${ARGS[@]}"
@@ -144,7 +162,12 @@ jobs:
           MIN_PASS_RATE: ${{ github.event.inputs.min_pass_rate }}
           TRIALS: ${{ github.event.inputs.trials }}
           WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: deno run --allow-read --allow-env ./scripts/render-eval-report.ts > eval-report.md
+        run: |
+          if [ "${{ steps.eval.outputs.is_compare }}" = "true" ]; then
+            deno run --allow-read --allow-env ./scripts/render-compare-report.ts > eval-report.md
+          else
+            deno run --allow-read --allow-env ./scripts/render-eval-report.ts > eval-report.md
+          fi
 
       - name: Publish eval report discussion
         if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code != '2'
