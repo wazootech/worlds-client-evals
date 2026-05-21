@@ -34,25 +34,25 @@ deno task evals
 | `EVAL_PROVIDER_ID`             |     No     | `google`                |
 | `EVAL_MODEL_ID`                |     No     | `gemini-3.1-flash-lite` |
 
-Unit tests (`evals/*.test.ts`) do not use these variables and run without an API
-key.
+Unit tests (`tests/**/*.test.ts`) do not use these variables and run without an
+API key.
 
 ## Flags
 
-| Flag                 | Description                                                                                     |
-| :------------------- | :---------------------------------------------------------------------------------------------- |
-| `--list`             | Print matching case ids and descriptions, then exit                                             |
-| `--filter <pattern>` | Deno-test-like filter on case `id` or `description` (literal or `/regex/i`)                     |
-| `--permit-no-files`  | Exit 0 when the filter matches no cases (default: error)                                        |
-| `--update-goldens`   | Write blessed snapshots under `evals/goldens/` (requires `--filter`; case must pass assertions) |
-| `--check-goldens`    | Compare run output to committed goldens (requires `--filter`)                                   |
-| `--trials <N>`       | Run each selected case `N` times and aggregate pass rates (default `1`)                         |
-| `--min-pass-rate`    | With `--trials`, require each case pass rate ≥ threshold (0–1); default requires 100%           |
+| Flag                 | Description                                                                               |
+| :------------------- | :---------------------------------------------------------------------------------------- |
+| `--list`             | Print matching case ids and descriptions, then exit                                       |
+| `--filter <pattern>` | Deno-test-like filter on case `id` or `description` (literal or `/regex/i`)               |
+| `--permit-no-files`  | Exit 0 when the filter matches no cases (default: error)                                  |
+| `--update-goldens`   | Write blessed snapshots under `goldens/` (requires `--filter`; case must pass assertions) |
+| `--check-goldens`    | Compare run output to committed goldens (requires `--filter`)                             |
+| `--trials <N>`       | Run each selected case `N` times and aggregate pass rates (default `1`)                   |
+| `--min-pass-rate`    | With `--trials`, require each case pass rate ≥ threshold (0–1); default requires 100%     |
 
 ## Output
 
 - **Summary:** per-case pass/fail, step count, tool names, assertion lines
-- **Artifacts:** `evals/results/latest.json` (gitignored)
+- **Artifacts:** `results/latest.json` (gitignored)
 - **Exit code:** `0` when all cases pass; `1` on failure
 
 ## CI
@@ -65,17 +65,27 @@ key.
 
 ## Layout
 
-| Path                             | Role                                           |
-| :------------------------------- | :--------------------------------------------- |
-| `evals/run-evals.ts`             | CLI entry, filtering, golden update/check      |
-| `evals/agent-runner.ts`          | One case execution via AI SDK                  |
-| `evals/tools.ts`                 | Eval-isolated tools and SPARQL read-only guard |
-| `evals/assertions.ts`            | Per-case deterministic assertions              |
-| `evals/test-cases.ts`            | Scenario catalog                               |
-| `evals/world-fixture.ts`         | Primary fixture (work → protagonist → house)   |
-| `evals/world-fixture-scholar.ts` | Scholar fixture (paper → author/venue/year)    |
-| `evals/goldens/`                 | Committed provider/model snapshots             |
-| `evals/results/`                 | Local run output (gitignored)                  |
+| Path                            | Role                                           |
+| :------------------------------ | :--------------------------------------------- |
+| `src/cli/run.ts`                | CLI entry, filtering, golden update/check      |
+| `src/runner/`                   | Agent execution, system prompt, trajectory     |
+| `src/tools/`                    | Eval-isolated tools and SPARQL read-only guard |
+| `src/assertions/`               | Per-case deterministic assertions              |
+| `src/cases/`                    | Scenario catalog                               |
+| `src/fixtures/primary-world.ts` | Primary fixture (work -> protagonist -> house) |
+| `src/fixtures/scholar-world.ts` | Scholar fixture (paper -> author/venue/year)   |
+| `tests/`                        | Deterministic unit tests                       |
+| `goldens/`                      | Committed provider/model snapshots             |
+| `results/`                      | Local run output (gitignored)                  |
 
-Read `evals/README.md` for full policy, free-tier quota planning, and epic
-status.
+## Evaluation Policy
+
+- Deterministic assertions are the pass/fail gate. Prefer code checks over LLM
+  judging for tool use, SPARQL handoff, grounding, guard behavior, and step
+  budgets.
+- Golden trajectories are review artifacts, not the primary correctness signal.
+  Re-bless them only after deterministic assertions pass.
+- Incomplete, rate-limited, or credential-skipped live runs are operational
+  signals only; do not cite them as benchmark evidence.
+- Add real dogfooding failures back into `src/cases/` and `src/assertions/` so
+  important regressions stay caught.

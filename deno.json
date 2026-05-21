@@ -19,7 +19,7 @@
     "vendor/jsonld-context-parser/**"
   ],
   "tasks": {
-    "evals": "deno run -A --env ./evals/run-evals.ts",
+    "evals": "deno run -A --env ./src/cli/run.ts",
     "test": "deno test --allow-all --unstable-kv",
     "fmt": "deno fmt",
     "fmt:check": "deno fmt --check",
