@@ -180,7 +180,7 @@ jobs:
           body-path: pr-body.md
           add-paths: |
             journal/${{ steps.journal_meta.outputs.entry_id }}/**
-          labels: eval-journal
+          labels: journal
 
       - name: Fail job when eval assertions did not pass
         if: steps.eval.outputs.exit_code == '1'
