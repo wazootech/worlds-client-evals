@@ -33,6 +33,10 @@ on:
         description: Comma-separated pair of config IDs to compare (e.g. baseline,with-resolve-resource)
         required: false
         default: ""
+      model_id:
+        description: "Gemini model ID (e.g. gemini-3.1-flash-lite, gemini-3.1-pro)"
+        required: false
+        default: ""
 
 jobs:
   check-activity:
@@ -95,6 +99,9 @@ jobs:
         env:
           GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
         run: |
+          if [ -n "${{ github.event.inputs.model_id }}" ]; then
+            export EVAL_MODEL_ID="${{ github.event.inputs.model_id }}"
+          fi
           if [ -z "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then
             echo "GOOGLE_GENERATIVE_AI_API_KEY secret is not configured; skipping live evals."
             echo "exit_code=0" >> "$GITHUB_OUTPUT"
