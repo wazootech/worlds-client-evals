@@ -2,19 +2,19 @@
   "version": "5",
   "specifiers": {
     "jsr:@std/assert@^1.0.19": "1.0.19",
+    "jsr:@std/cli@^1.0.22": "1.0.29",
     "jsr:@std/encoding@^1.0.10": "1.0.10",
     "jsr:@std/fs@^1.0.23": "1.0.23",
     "jsr:@std/internal@^1.0.12": "1.0.13",
     "jsr:@std/path@^1.1.4": "1.1.4",
-    "jsr:@worlds/client@0.0.2": "0.0.2",
-    "jsr:@worlds/client@^0.0.2": "0.0.2",
-    "npm:@ai-sdk/google@^3.0.77": "3.0.77_zod@4.4.3",
+    "jsr:@worlds/client@^0.0.5": "0.0.5",
+    "npm:@ai-sdk/google@^3.0.78": "3.0.78_zod@4.4.3",
     "npm:@comunica/query-sparql-rdfjs-lite@^5.2.2": "5.2.2",
     "npm:@langchain/textsplitters@^1.0.1": "1.0.1_@langchain+core@1.1.47",
     "npm:@libsql/client@~0.17.3": "0.17.3",
     "npm:@rdfjs/types@^2.0.1": "2.0.1",
     "npm:@types/n3@1.26.1": "1.26.1",
-    "npm:ai@^6.0.187": "6.0.187_zod@4.4.3",
+    "npm:ai@^6.0.188": "6.0.188_zod@4.4.3",
     "npm:jsonld-context-parser@2.4.0": "2.4.0",
     "npm:n3@^2.0.3": "2.0.3",
     "npm:rdf-canonize@5": "5.0.0",
@@ -26,6 +26,9 @@
       "dependencies": [
         "jsr:@std/internal"
       ]
+    },
+    "@std/cli@1.0.29": {
+      "integrity": "fa4ef29130baa834d8a13b7d138240c3a2fcfba740bfb7afa646a360a15ec84f"
     },
     "@std/encoding@1.0.10": {
       "integrity": "8783c6384a2d13abd5e9e87a7ae0520a30e9f56aeeaa3bdf910a3eaaf5c811a1"
@@ -46,11 +49,10 @@
         "jsr:@std/internal"
       ]
     },
-    "@worlds/client@0.0.2": {
-      "integrity": "3a1b947456cfe9e200a8ce38da9d57c4afb7aa1a9997b738a9442cd5a9302cb7",
+    "@worlds/client@0.0.5": {
+      "integrity": "3dfe5edb56c2f5e50139b3764d71cbc61ed15ab9a0d21dc4f26cc0a5c83b3853",
       "dependencies": [
         "jsr:@std/encoding",
-        "jsr:@worlds/client@^0.0.2",
         "npm:@langchain/textsplitters",
         "npm:@libsql/client",
         "npm:@rdfjs/types",
@@ -70,8 +72,8 @@
         "zod"
       ]
     },
-    "@ai-sdk/google@3.0.77_zod@4.4.3": {
-      "integrity": "sha512-t6BdlhF5TBC8fRtGAwugS0UwAwWlUyUriYGYjYzFhap6iB7dY+tnPPL/AVn1k5BeGdIYAkLjRKeQdjUhHaB7rQ==",
+    "@ai-sdk/google@3.0.78_zod@4.4.3": {
+      "integrity": "sha512-iPkZHiaaBNreaVX2fLpc+SAa7OJPV6f7pZRK98lWTI4vf0D546+9eEQ6T2FagJAHO0K0gEyzx5zogCoHbJnhQg==",
       "dependencies": [
         "@ai-sdk/provider",
         "@ai-sdk/provider-utils",
@@ -3007,8 +3009,8 @@
         "event-target-shim"
       ]
     },
-    "ai@6.0.187_zod@4.4.3": {
-      "integrity": "sha512-+0SWsOnrZ1CvfMeLUMBTd5L3ytf82FuL9VyJnaw475P78CUbvudZ1Jj/x/kmu3xE8ECoLqyu9Mn3LmuAjjbLIg==",
+    "ai@6.0.188_zod@4.4.3": {
+      "integrity": "sha512-kNwIl1MM4ESzeOPDYuN+FidJ2QY5kGWHLtTMru6HHPW/JJ6nPuvHRhJ8tMX/Y2Tijx9DCiv2W7y5IBouuB712g==",
       "dependencies": [
         "@ai-sdk/gateway",
         "@ai-sdk/provider",
@@ -3739,13 +3741,14 @@
   "workspace": {
     "dependencies": [
       "jsr:@std/assert@^1.0.19",
+      "jsr:@std/cli@^1.0.22",
       "jsr:@std/fs@^1.0.23",
       "jsr:@std/path@^1.1.4",
-      "jsr:@worlds/client@^0.0.2",
-      "npm:@ai-sdk/google@^3.0.77",
+      "jsr:@worlds/client@^0.0.5",
+      "npm:@ai-sdk/google@^3.0.78",
       "npm:@comunica/query-sparql-rdfjs-lite@^5.2.2",
       "npm:@libsql/client@~0.17.3",
-      "npm:ai@^6.0.187",
+      "npm:ai@^6.0.188",
       "npm:zod@^4.4.3"
     ],
     "links": {

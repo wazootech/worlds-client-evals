@@ -2,7 +2,7 @@ name: Agent evals
 
 on:
   schedule:
-    # Weekly baseline (Monday 06:00 UTC). Requires GOOGLE_GENERATIVE_AI_API_KEY secret.
+    # Weekly baseline (Monday 06:00 UTC). Skips when the harness was idle for 7+ days.
     - cron: "0 6 * * 1"
   workflow_dispatch:
     inputs:
@@ -20,21 +20,77 @@ on:
         default: "0.8"
 
 jobs:
-  evals:
+  check-activity:
     runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.activity.outputs.should_run }}
+      skip_reason: ${{ steps.activity.outputs.skip_reason }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether scheduled evals should run
+        id: activity
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=" >> "$GITHUB_OUTPUT"
+            echo "Manual workflow_dispatch — running evals regardless of recent commits."
+            exit 0
+          fi
+
+          # Harness-relevant paths only (ignore journal/ entry-only churn).
+          HARNESS_PATHS=(
+            "src/"
+            "tests/"
+            "scripts/"
+            "deno.json"
+            "deno.lock"
+            ".github/workflows/"
+            "vendor/"
+          )
+
+          RECENT_COMMITS=$(
+            git log --since="7 days ago" --format=%H -- "${HARNESS_PATHS[@]}" | wc -l | tr -d ' '
+          )
+
+          if [ "$RECENT_COMMITS" -gt 0 ]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=" >> "$GITHUB_OUTPUT"
+            echo "Found ${RECENT_COMMITS} harness commit(s) in the last 7 days — running evals."
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            echo "skip_reason=no_harness_commits_7d" >> "$GITHUB_OUTPUT"
+            echo "No harness commits in the last 7 days — skipping scheduled evals."
+          fi
+
+  evals:
+    needs: check-activity
+    if: needs.check-activity.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v6
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+
       - name: Run credentialed agent evals
+        id: eval
         env:
           GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
         run: |
           if [ -z "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then
             echo "GOOGLE_GENERATIVE_AI_API_KEY secret is not configured; skipping live evals."
+            echo "exit_code=0" >> "$GITHUB_OUTPUT"
+            echo "api_key_configured=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "api_key_configured=true" >> "$GITHUB_OUTPUT"
+
           TRIALS="${{ github.event.inputs.trials }}"
           if [ "${{ github.event_name }}" = "schedule" ]; then
             TRIALS="10"
@@ -53,10 +109,91 @@ jobs:
           if [ -n "$MIN_PASS_RATE" ]; then
             ARGS+=(--min-pass-rate "$MIN_PASS_RATE")
           fi
-          deno task evals -- "${ARGS[@]}" || {
-            EXIT_CODE=$?
-            if [ $EXIT_CODE -eq 2 ]; then
-              echo "::error::Eval run aborted due to fatal API error (billing/quota/auth). Check GOOGLE_GENERATIVE_AI_API_KEY secret and Google AI Studio billing status."
-            fi
-            exit $EXIT_CODE
-          }
+
+          set +e
+          deno task evals -- "${ARGS[@]}"
+          EXIT_CODE=$?
+          set -e
+          echo "exit_code=${EXIT_CODE}" >> "$GITHUB_OUTPUT"
+
+          if [ "$EXIT_CODE" -eq 2 ]; then
+            echo "::error::Eval run aborted due to fatal API error (billing/quota/auth). Check GOOGLE_GENERATIVE_AI_API_KEY secret and Google AI Studio billing status."
+            exit 2
+          fi
+
+      - name: Resolve journal entry id
+        id: journal_meta
+        if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code != '2'
+        run: |
+          if [ ! -f journal/.last-entry-id ]; then
+            echo "No journal/.last-entry-id marker — skipping pull request."
+            exit 0
+          fi
+          ENTRY_ID=$(tr -d '\n' < journal/.last-entry-id)
+          if [ ! -f "journal/${ENTRY_ID}/manifest.json" ]; then
+            echo "Missing journal/${ENTRY_ID}/manifest.json — skipping pull request."
+            exit 0
+          fi
+          echo "entry_id=${ENTRY_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Build pull request body
+        if: steps.journal_meta.outputs.entry_id != ''
+        run: |
+          ENTRY_ID='${{ steps.journal_meta.outputs.entry_id }}'
+          MANIFEST="journal/${ENTRY_ID}/manifest.json"
+          FILTER_LABEL=$(jq -r 'if .filter == null then "full suite" else .filter end' "$MANIFEST")
+          PROVIDER_ID=$(jq -r .providerId "$MANIFEST")
+          MODEL_ID=$(jq -r .modelId "$MANIFEST")
+          SUITE_SUCCESS=$(jq -r .suiteSuccess "$MANIFEST")
+          TRIAL_COUNT=$(jq -r .trialCount "$MANIFEST")
+          GIT_SHA=$(jq -r '.gitSha // "unknown"' "$MANIFEST")
+          CASE_COUNT=$(jq -r '.caseIds | length' "$MANIFEST")
+          TRIGGER="${{ github.event_name }}"
+          WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          {
+            echo "## Journal entry"
+            echo ""
+            echo "Automated agent eval journal entry from \`${TRIGGER}\`."
+            echo ""
+            echo "| Field | Value |"
+            echo "| :---- | :---- |"
+            echo "| Entry ID | \`${ENTRY_ID}\` |"
+            echo "| Provider / model | ${PROVIDER_ID} / ${MODEL_ID} |"
+            echo "| Filter | ${FILTER_LABEL} |"
+            echo "| Cases recorded | ${CASE_COUNT} |"
+            echo "| Suite success | ${SUITE_SUCCESS} |"
+            echo "| Trials | ${TRIAL_COUNT} |"
+            echo "| Git SHA | ${GIT_SHA} |"
+            echo "| Workflow run | ${WORKFLOW_URL} |"
+            echo ""
+            echo "Assertions and pass-rate gates determine harness health; this PR is the trajectory record for review."
+          } > pr-body.md
+
+      - name: Open journal entry pull request
+        if: steps.journal_meta.outputs.entry_id != ''
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: journal/${{ steps.journal_meta.outputs.entry_id }}
+          commit-message: Add journal entry ${{ steps.journal_meta.outputs.entry_id }}
+          title: Journal entry `${{ steps.journal_meta.outputs.entry_id }}`
+          body-path: pr-body.md
+          add-paths: |
+            journal/${{ steps.journal_meta.outputs.entry_id }}/**
+          labels: eval-journal
+
+      - name: Fail job when eval assertions did not pass
+        if: steps.eval.outputs.exit_code == '1'
+        run: |
+          echo "Eval assertions or pass-rate gate failed; see workflow logs and the journal pull request."
+          exit 1
+
+  skipped:
+    needs: check-activity
+    if: needs.check-activity.outputs.should_run != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report skip
+        run: |
+          echo "Scheduled agent evals skipped (${{ needs.check-activity.outputs.skip_reason }})."
+          echo "No harness changes in the last 7 days; use workflow_dispatch to run anyway."

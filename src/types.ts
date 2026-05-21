@@ -31,24 +31,6 @@ export interface EvalAssertionResult {
   message?: string;
 }
 
-/** EvalGoldenOutputComparison describes how a case compares final model output against its golden. */
-export type EvalGoldenOutputComparison =
-  | {
-    mode: "ignore";
-  }
-  | {
-    mode: "normalized-exact";
-  }
-  | {
-    mode: "contains-substrings";
-    requiredSubstrings: string[];
-  };
-
-/** EvalGoldenOptions defines per-case snapshot comparison behavior. */
-export interface EvalGoldenOptions {
-  output: EvalGoldenOutputComparison;
-}
-
 /** EvalCaseDefinition describes one agent evaluation scenario. */
 export interface EvalCaseDefinition {
   id: string;
@@ -56,7 +38,6 @@ export interface EvalCaseDefinition {
   prompt: string;
   maxSteps?: number;
   fixtureId?: string;
-  golden: EvalGoldenOptions;
 }
 
 /** EvalCaseResult stores the output and assertion results for one scenario. */
@@ -110,8 +91,8 @@ export interface EvalStatsResult {
   casePassRates: EvalCasePassRate[];
 }
 
-/** GoldenEvalRunMetadata captures stable metadata suitable for committed snapshots. */
-export interface GoldenEvalRunMetadata {
+/** EvalJournalCaseMetadata captures stable metadata stored in a committed journal case record. */
+export interface EvalJournalCaseMetadata {
   providerId: string;
   modelId: string;
   stepCount: number;
@@ -119,15 +100,28 @@ export interface GoldenEvalRunMetadata {
   trajectory: EvalToolRecord[];
 }
 
-/** GoldenEvalCaseResult stores a sanitized, committed snapshot for one case. */
-export interface GoldenEvalCaseResult {
+/** EvalJournalCaseRecord stores the committed journal payload for one case. */
+export interface EvalJournalCaseRecord {
   id: string;
   description: string;
   prompt: string;
   output: string;
   success: boolean;
-  metadata: GoldenEvalRunMetadata;
+  metadata: EvalJournalCaseMetadata;
   assertions: EvalAssertionResult[];
   toolSequence: string[];
   error?: string;
+}
+
+/** EvalJournalManifest stores entry-level metadata for one committed journal folder. */
+export interface EvalJournalManifest {
+  timestamp: string;
+  filter: string | null;
+  providerId: string;
+  modelId: string;
+  caseIds: string[];
+  suiteSuccess: boolean;
+  trialCount: number;
+  gitSha?: string;
+  importedFrom?: string;
 }

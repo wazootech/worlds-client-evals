@@ -1,8 +1,8 @@
-import { createClient as createLibsqlClient } from "@libsql/client";
+import { createClient } from "@libsql/client";
 import { QueryEngine } from "@comunica/query-sparql-rdfjs-lite";
-import { Client } from "@worlds/client";
-import { ComunicaSparqlEngine } from "@worlds/client/providers/comunica";
-import { provideLibsql } from "@worlds/client/providers/libsql";
+import type { Client } from "@worlds/client";
+import { ComunicaSparqlEngine } from "@worlds/client/adapters/comunica";
+import { createLibsqlClient } from "@worlds/client/adapters/libsql";
 
 /** GENID_BASE is the production-style skolem prefix for eval fixture entities. */
 export const GENID_BASE = "https://worlds.wazoo.dev/.well-known/genid/";
@@ -36,14 +36,13 @@ const SEEDED_SCHOLAR_DATA = `
 
 /** createSeededScholarWorldClient builds a fresh in-memory world with the scholar graph. */
 export async function createSeededScholarWorldClient(): Promise<Client> {
-  const database = createLibsqlClient({ url: ":memory:" });
+  const libsqlClient = createClient({ url: ":memory:" });
   const queryEngine = new QueryEngine();
-  const providerOptions = await provideLibsql({
-    client: database,
+  const client = await createLibsqlClient({
+    client: libsqlClient,
     createSparqlEngine: ({ store }) =>
       new ComunicaSparqlEngine({ queryEngine, store }),
   });
-  const client = new Client(providerOptions);
 
   await client.import({
     source: {

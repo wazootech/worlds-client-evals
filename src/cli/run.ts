@@ -1,7 +1,9 @@
+import { parseArgs } from "@std/cli/parse-args";
 import { ensureDir } from "@std/fs";
 import { dirname, fromFileUrl, join } from "@std/path";
 import { applyAssertions } from "../assertions/index.ts";
 import { evalCases } from "../cases/index.ts";
+import { writeJournalEntry } from "./eval-journal.ts";
 import { runEvalCase } from "../runner/agent-runner.ts";
 import type {
   EvalAssertionPassRate,
@@ -10,7 +12,6 @@ import type {
   EvalCaseResult,
   EvalStatsResult,
   EvalSuiteResult,
-  GoldenEvalCaseResult,
 } from "../types.ts";
 
 const providerId = Deno.env.get("EVAL_PROVIDER_ID") ?? "google";
@@ -19,20 +20,14 @@ const supportedProviderIds = new Set(["google"]);
 
 interface EvalCliOptions {
   filter?: RegExp;
+  filterRaw?: string;
   list: boolean;
   permitNoFiles: boolean;
-  updateGoldens: boolean;
-  checkGoldens: boolean;
   trialCount: number;
   minPassRate?: number;
 }
 
-interface GoldenComparisonIssue {
-  field: string;
-  message: string;
-}
-
-/** validateProviderId prevents mislabeled provider metadata and golden paths. */
+/** validateProviderId prevents mislabeled provider metadata in journal entries. */
 function validateProviderId(provider: string): void {
   if (!supportedProviderIds.has(provider)) {
     throw new Error(
@@ -93,104 +88,56 @@ function parsePassRateOption(
 }
 
 /** parseCliOptions reads supported targeting flags from Deno.args. */
-function parseCliOptions(args: string[]): EvalCliOptions {
-  let filter: RegExp | undefined;
-  let list = false;
-  let permitNoFiles = false;
-  let updateGoldens = false;
-  let checkGoldens = false;
-  let trialCount = Number.parseInt(Deno.env.get("EVAL_TRIALS") ?? "1", 10);
-  let minPassRate: number | undefined;
+export function parseCliOptions(args: string[]): EvalCliOptions {
+  const parsedArgs = parseArgs(args, {
+    boolean: ["list", "permit-no-files"],
+    string: ["filter", "trials", "min-pass-rate"],
+    unknown: (argument) => {
+      if (argument === "--") {
+        return true;
+      }
+
+      throw new Error(
+        `Unsupported argument: ${argument}. Supported flags: --filter <pattern>, --list, --permit-no-files, --trials <N>, --min-pass-rate <0-1>`,
+      );
+    },
+  });
+
+  if (parsedArgs._.length > 0) {
+    throw new Error(
+      `Unsupported argument: ${
+        parsedArgs._[0]
+      }. Supported flags: --filter <pattern>, --list, --permit-no-files, --trials <N>, --min-pass-rate <0-1>`,
+    );
+  }
+
+  const filterRaw = parsedArgs.filter;
+  const filter = filterRaw ? parseFilter(filterRaw) : undefined;
+  const list = parsedArgs.list;
+  const permitNoFiles = parsedArgs["permit-no-files"];
+  let trialCount = parsedArgs.trials
+    ? parsePositiveIntegerOption("--trials", parsedArgs.trials)
+    : Number.parseInt(Deno.env.get("EVAL_TRIALS") ?? "1", 10);
+  const minPassRate = parsedArgs["min-pass-rate"]
+    ? parsePassRateOption("--min-pass-rate", parsedArgs["min-pass-rate"])
+    : undefined;
 
   if (!Number.isFinite(trialCount) || trialCount < 1) {
     trialCount = 1;
   }
 
-  for (let index = 0; index < args.length; index += 1) {
-    const argument = args[index];
-
-    if (argument === "--") {
-      continue;
-    }
-
-    if (argument === "--list") {
-      list = true;
-      continue;
-    }
-
-    if (argument === "--permit-no-files") {
-      permitNoFiles = true;
-      continue;
-    }
-
-    if (argument === "--update-goldens") {
-      updateGoldens = true;
-      continue;
-    }
-
-    if (argument === "--check-goldens") {
-      checkGoldens = true;
-      continue;
-    }
-
-    if (argument === "--trials") {
-      trialCount = parsePositiveIntegerOption("--trials", args[index + 1]);
-      index += 1;
-      continue;
-    }
-
-    if (argument === "--min-pass-rate") {
-      minPassRate = parsePassRateOption("--min-pass-rate", args[index + 1]);
-      index += 1;
-      continue;
-    }
-
-    if (argument === "--filter") {
-      const rawFilter = args[index + 1];
-      if (!rawFilter) {
-        throw new Error("Missing value for --filter");
-      }
-      filter = parseFilter(rawFilter);
-      index += 1;
-      continue;
-    }
-
-    throw new Error(
-      `Unsupported argument: ${argument}. Supported flags: --filter <pattern>, --list, --permit-no-files, --update-goldens, --check-goldens, --trials <N>, --min-pass-rate <0-1>`,
-    );
-  }
-
-  if (updateGoldens && checkGoldens) {
-    throw new Error(
-      "Use either --update-goldens or --check-goldens, not both.",
-    );
-  }
-
-  if ((updateGoldens || checkGoldens) && !filter) {
-    throw new Error(
-      "Golden operations require --filter so updates and checks stay intentionally scoped.",
-    );
-  }
-
-  if ((updateGoldens || checkGoldens) && trialCount > 1) {
-    throw new Error(
-      "Golden operations require --trials 1 so snapshots stay deterministic.",
-    );
-  }
-
   return {
     filter,
+    filterRaw,
     list,
     permitNoFiles,
-    updateGoldens,
-    checkGoldens,
     trialCount,
     minPassRate,
   };
 }
 
 /** selectEvalCases filters eval cases by id and description. */
-function selectEvalCases(
+export function selectEvalCases(
   cases: EvalCaseDefinition[],
   options: EvalCliOptions,
 ): EvalCaseDefinition[] {
@@ -344,283 +291,6 @@ function printStatsSummary(statsResult: EvalStatsResult): void {
   }
 }
 
-/** sanitizeFileNameSegment converts a provider or model id into a path-safe segment. */
-function sanitizeFileNameSegment(value: string): string {
-  return value.replace(/[^a-zA-Z0-9.-]+/g, "-").replace(/-+/g, "-");
-}
-
-/** sanitizeGoldenCaseResult drops volatile metadata before snapshot storage. */
-function sanitizeGoldenCaseResult(
-  result: EvalCaseResult,
-): GoldenEvalCaseResult {
-  return {
-    id: result.id,
-    description: result.description,
-    prompt: result.prompt,
-    output: result.output,
-    success: result.success,
-    metadata: {
-      providerId: result.metadata.providerId,
-      modelId: result.metadata.modelId,
-      stepCount: result.metadata.stepCount,
-      finishReason: result.metadata.finishReason,
-      trajectory: result.metadata.trajectory,
-    },
-    assertions: result.assertions,
-    toolSequence: result.toolSequence,
-    error: result.error,
-  };
-}
-
-/** getGoldensDirectory resolves the committed golden snapshot directory. */
-function getGoldensDirectory(): string {
-  const repositoryRoot = join(
-    dirname(fromFileUrl(import.meta.url)),
-    "..",
-    "..",
-  );
-  return join(repositoryRoot, "goldens");
-}
-
-/** getGoldenSnapshotPath resolves the per-case golden path for a provider/model pair. */
-function getGoldenSnapshotPath(
-  testCase: EvalCaseDefinition,
-  provider: string,
-  model: string,
-): string {
-  const goldensDirectory = getGoldensDirectory();
-  return join(
-    goldensDirectory,
-    `${testCase.id}.${sanitizeFileNameSegment(provider)}.${
-      sanitizeFileNameSegment(model)
-    }.json`,
-  );
-}
-
-/** normalizeOutputText canonicalizes free-form final text before tolerant comparison. */
-function normalizeOutputText(value: string): string {
-  return value.toLowerCase().replace(/\s+/g, " ").trim();
-}
-
-/** compareGoldenOutput applies the case-specific final output comparison policy. */
-function compareGoldenOutput(
-  testCase: EvalCaseDefinition,
-  expected: GoldenEvalCaseResult,
-  actual: GoldenEvalCaseResult,
-): GoldenComparisonIssue[] {
-  switch (testCase.golden.output.mode) {
-    case "ignore":
-      return [];
-    case "normalized-exact": {
-      if (expected.output === actual.output) {
-        return [];
-      }
-      return [{
-        field: "output",
-        message: "Final output does not match the committed golden.",
-      }];
-    }
-    case "contains-substrings": {
-      const normalizedActualOutput = normalizeOutputText(actual.output);
-      const missingSubstrings = testCase.golden.output.requiredSubstrings
-        .filter((substring) =>
-          !normalizedActualOutput.includes(normalizeOutputText(substring))
-        );
-      if (missingSubstrings.length === 0) {
-        return [];
-      }
-      return [{
-        field: "output",
-        message: `Final output is missing required substrings: ${
-          missingSubstrings.join(", ")
-        }`,
-      }];
-    }
-  }
-}
-
-/** compareGoldenCaseResult checks sanitized structured fields exactly and output fields by policy. */
-function compareGoldenCaseResult(
-  testCase: EvalCaseDefinition,
-  expected: GoldenEvalCaseResult,
-  actual: GoldenEvalCaseResult,
-): GoldenComparisonIssue[] {
-  const issues: GoldenComparisonIssue[] = [];
-  const exactFieldComparisons: Array<[string, unknown, unknown]> = [
-    ["id", expected.id, actual.id],
-    ["description", expected.description, actual.description],
-    ["prompt", expected.prompt, actual.prompt],
-    ["success", expected.success, actual.success],
-    [
-      "metadata.providerId",
-      expected.metadata.providerId,
-      actual.metadata.providerId,
-    ],
-    ["metadata.modelId", expected.metadata.modelId, actual.metadata.modelId],
-    [
-      "metadata.stepCount",
-      expected.metadata.stepCount,
-      actual.metadata.stepCount,
-    ],
-    [
-      "metadata.finishReason",
-      expected.metadata.finishReason,
-      actual.metadata.finishReason,
-    ],
-    [
-      "metadata.trajectory",
-      expected.metadata.trajectory,
-      actual.metadata.trajectory,
-    ],
-    ["assertions", expected.assertions, actual.assertions],
-    ["error", expected.error, actual.error],
-  ];
-
-  for (const [field, expectedValue, actualValue] of exactFieldComparisons) {
-    if (JSON.stringify(expectedValue) !== JSON.stringify(actualValue)) {
-      issues.push({
-        field,
-        message: `Golden mismatch for ${field}.`,
-      });
-    }
-  }
-
-  issues.push(...compareGoldenOutput(testCase, expected, actual));
-  return issues;
-}
-
-/** writeGoldenSnapshots persists per-case golden snapshots for the selected suite results. */
-async function writeGoldenSnapshots(
-  suiteResult: EvalSuiteResult,
-  selectedCases: EvalCaseDefinition[],
-): Promise<string[]> {
-  const goldensDirectory = getGoldensDirectory();
-  await ensureDir(goldensDirectory);
-  const writtenPaths: string[] = [];
-
-  for (const testCase of selectedCases) {
-    const caseResult = suiteResult.results.find((result) =>
-      result.id === testCase.id
-    );
-    if (!caseResult) {
-      throw new Error(`Missing suite result for case id: ${testCase.id}`);
-    }
-    const outputPath = getGoldenSnapshotPath(
-      testCase,
-      suiteResult.providerId,
-      suiteResult.modelId,
-    );
-    const goldenResult = sanitizeGoldenCaseResult(caseResult);
-    await Deno.writeTextFile(
-      outputPath,
-      `${JSON.stringify(goldenResult, null, 2)}\n`,
-    );
-    writtenPaths.push(outputPath);
-  }
-
-  return writtenPaths;
-}
-
-/** validateGoldenUpdateInputs rejects failed or policy-invalid results before blessing. */
-function validateGoldenUpdateInputs(
-  suiteResult: EvalSuiteResult,
-  selectedCases: EvalCaseDefinition[],
-): void {
-  const invalidCases: string[] = [];
-
-  for (const testCase of selectedCases) {
-    const caseResult = suiteResult.results.find((result) =>
-      result.id === testCase.id
-    );
-
-    if (!caseResult) {
-      invalidCases.push(`${testCase.id}: missing result`);
-      continue;
-    }
-
-    if (!caseResult.success) {
-      const failedAssertions = caseResult.assertions
-        .filter((assertion) => !assertion.pass)
-        .map((assertion) => assertion.name)
-        .join(", ");
-      invalidCases.push(
-        `${testCase.id}: unsuccessful result${
-          failedAssertions ? ` (${failedAssertions})` : ""
-        }`,
-      );
-      continue;
-    }
-
-    const policyIssues = compareGoldenOutput(
-      testCase,
-      sanitizeGoldenCaseResult(caseResult),
-      sanitizeGoldenCaseResult(caseResult),
-    );
-    if (policyIssues.length > 0) {
-      invalidCases.push(`${testCase.id}: ${policyIssues[0].message}`);
-    }
-  }
-
-  if (invalidCases.length > 0) {
-    throw new Error(
-      `Refusing to update golden snapshots for invalid results: ${
-        invalidCases.join("; ")
-      }`,
-    );
-  }
-}
-
-/** checkGoldenSnapshots compares selected cases against committed per-case goldens. */
-async function checkGoldenSnapshots(
-  suiteResult: EvalSuiteResult,
-  selectedCases: EvalCaseDefinition[],
-): Promise<GoldenComparisonIssue[]> {
-  const goldensDirectory = getGoldensDirectory();
-  await ensureDir(goldensDirectory);
-  const issues: GoldenComparisonIssue[] = [];
-
-  for (const testCase of selectedCases) {
-    const goldenPath = getGoldenSnapshotPath(
-      testCase,
-      suiteResult.providerId,
-      suiteResult.modelId,
-    );
-    let goldenText: string;
-    try {
-      goldenText = await Deno.readTextFile(goldenPath);
-    } catch (error) {
-      issues.push({
-        field: `${testCase.id}.golden`,
-        message: error instanceof Error
-          ? `Missing or unreadable golden snapshot at ${goldenPath}: ${error.message}`
-          : `Missing or unreadable golden snapshot at ${goldenPath}`,
-      });
-      continue;
-    }
-
-    const expected = JSON.parse(goldenText) as GoldenEvalCaseResult;
-    const actualSource = suiteResult.results.find((result) =>
-      result.id === testCase.id
-    );
-    if (!actualSource) {
-      issues.push({
-        field: `${testCase.id}.result`,
-        message: `Missing suite result for case id: ${testCase.id}`,
-      });
-      continue;
-    }
-    const actual = sanitizeGoldenCaseResult(actualSource);
-    for (const issue of compareGoldenCaseResult(testCase, expected, actual)) {
-      issues.push({
-        field: `${testCase.id}.${issue.field}`,
-        message: issue.message,
-      });
-    }
-  }
-
-  return issues;
-}
-
 /** printSummary renders a concise terminal summary for local debugging. */
 function printSummary(result: EvalSuiteResult): void {
   console.log(`Provider: ${result.providerId}`);
@@ -646,19 +316,6 @@ function printSummary(result: EvalSuiteResult): void {
       console.log(`  - ${assertion.pass ? "PASS" : "FAIL"}: ${assertion.name}`);
     }
     console.log("");
-  }
-}
-
-/** printGoldenComparisonIssues renders concise golden check failures. */
-function printGoldenComparisonIssues(issues: GoldenComparisonIssue[]): void {
-  if (issues.length === 0) {
-    console.log("Golden snapshot check passed.");
-    return;
-  }
-
-  console.log("Golden snapshot check failed:");
-  for (const issue of issues) {
-    console.log(`- ${issue.field}: ${issue.message}`);
   }
 }
 
@@ -774,27 +431,15 @@ if (import.meta.main) {
   const outputPath = await writeResults(suiteResult);
   console.log(`Wrote results to ${outputPath}`);
 
-  if (cliOptions.updateGoldens) {
-    validateGoldenUpdateInputs(suiteResult, selectedEvalCases);
-    const writtenPaths = await writeGoldenSnapshots(
-      suiteResult,
-      selectedEvalCases,
-    );
-    for (const writtenPath of writtenPaths) {
-      console.log(`Updated golden snapshot ${writtenPath}`);
-    }
-  }
-
-  if (cliOptions.checkGoldens) {
-    console.log(
-      "Note: golden trajectories are representative snapshots; assertion results are the behavioral gate.",
-    );
-    const issues = await checkGoldenSnapshots(suiteResult, selectedEvalCases);
-    printGoldenComparisonIssues(issues);
-    if (issues.length > 0) {
-      Deno.exitCode = 1;
-    }
-  }
+  const entryDirectory = await writeJournalEntry(
+    suiteResult,
+    selectedEvalCases,
+    {
+      filterRaw: cliOptions.filterRaw,
+      trialCount: cliOptions.trialCount,
+    },
+  );
+  console.log(`Wrote journal entry to ${entryDirectory}`);
 
   if (statsResult) {
     if (!statsResult.success) {

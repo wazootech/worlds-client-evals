@@ -25,11 +25,12 @@ A single evaluation scenario defined by an id, description, prompt, and maximum
 step budget. Cases exercise specific agent behaviors like search-then-SPARQL
 handoff, SPARQL guard enforcement, or distractor disambiguation.
 
-### Golden trajectory
+### Journal entry
 
-A committed snapshot of a representative eval run, including tool calls,
-arguments, results, and final output. Goldens are review artifacts, not the
-primary pass/fail signal.
+A committed folder under `journal/{entryId}/` that captures one live eval
+execution, including a manifest and per-case JSON with full tool trajectories.
+Journal entries are review and history artifacts, not the primary pass/fail
+signal.
 
 ### Assertion
 
