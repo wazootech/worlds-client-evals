@@ -1,5 +1,10 @@
 import type { EvalAssertionResult, EvalCaseResult } from "../types.ts";
 import {
+  defaultToolConfigId,
+  resolveToolConfig,
+} from "../tool-configs/index.ts";
+import type { ToolConfig } from "../tool-configs/types.ts";
+import {
   AUTHOR_LITERAL,
   DISTRACTOR_EXPECTED_HOUSE_LITERAL,
   EXPECTED_HOUSE_LITERAL,
@@ -99,10 +104,14 @@ export function extractSparqlBindingLiterals(sparqlResult: unknown): string[] {
 }
 
 /** assertUsedRequiredTools verifies that both phase-one tools were called. */
-function assertUsedRequiredTools(result: EvalCaseResult): EvalAssertionResult {
+function assertUsedRequiredTools(
+  result: EvalCaseResult,
+  toolConfig: ToolConfig,
+): EvalAssertionResult {
   const toolNames = result.metadata.trajectory.map((record) => record.toolName);
-  const pass = toolNames.includes("searchWorld") &&
-    toolNames.includes("executeSparql");
+  const pass = toolConfig.requiredToolNames.every((toolName) =>
+    toolNames.includes(toolName)
+  );
   return {
     name: "used-required-tools",
     pass,
@@ -111,12 +120,15 @@ function assertUsedRequiredTools(result: EvalCaseResult): EvalAssertionResult {
 }
 
 /** assertSearchBeforeSparql ensures discovery happens before graph traversal. */
-function assertSearchBeforeSparql(result: EvalCaseResult): EvalAssertionResult {
+function assertSearchBeforeSparql(
+  result: EvalCaseResult,
+  toolConfig: ToolConfig,
+): EvalAssertionResult {
   const searchIndex = result.metadata.trajectory.findIndex((record) =>
-    record.toolName === "searchWorld"
+    record.toolName === toolConfig.discoveryName
   );
   const sparqlIndex = result.metadata.trajectory.findIndex((record) =>
-    record.toolName === "executeSparql"
+    record.toolName === toolConfig.queryName
   );
   const pass = searchIndex !== -1 && sparqlIndex !== -1 &&
     searchIndex < sparqlIndex;
@@ -130,12 +142,15 @@ function assertSearchBeforeSparql(result: EvalCaseResult): EvalAssertionResult {
 }
 
 /** assertSparqlHandoffValid checks that a discovered subject URI flows into SPARQL. */
-function assertSparqlHandoffValid(result: EvalCaseResult): EvalAssertionResult {
+function assertSparqlHandoffValid(
+  result: EvalCaseResult,
+  toolConfig: ToolConfig,
+): EvalAssertionResult {
   const searchStep = result.metadata.trajectory.find((record) =>
-    record.toolName === "searchWorld"
+    record.toolName === toolConfig.discoveryName
   );
   const sparqlStep = result.metadata.trajectory.find((record) =>
-    record.toolName === "executeSparql"
+    record.toolName === toolConfig.queryName
   );
   const discoveredSubjects = extractSearchSubjects(searchStep?.result);
   const sparqlInput = JSON.stringify(sparqlStep?.args ?? {});
@@ -147,8 +162,8 @@ function assertSparqlHandoffValid(result: EvalCaseResult): EvalAssertionResult {
     message: pass
       ? undefined
       : discoveredSubjects.length === 0
-      ? "searchWorld returned no subject URIs to hand off into SPARQL"
-      : `Discovered subjects not found in first executeSparql args: ${
+      ? `${toolConfig.discoveryName} returned no subject URIs to hand off into ${toolConfig.queryName}`
+      : `Discovered subjects not found in first ${toolConfig.queryName} args: ${
         discoveredSubjects.join(", ")
       }; SPARQL args: ${sparqlInput.slice(0, 200)}`,
   };
@@ -186,10 +201,11 @@ function assertFinalAnswerCorrect(result: EvalCaseResult): EvalAssertionResult {
 /** assertSparqlAnswerGrounded verifies the expected house literal appears in SPARQL bindings. */
 function assertSparqlAnswerGrounded(
   result: EvalCaseResult,
+  toolConfig: ToolConfig,
   expectedLiteral: string = EXPECTED_HOUSE_LITERAL,
 ): EvalAssertionResult {
   const bindingLiterals = result.metadata.trajectory
-    .filter((record) => record.toolName === "executeSparql")
+    .filter((record) => record.toolName === toolConfig.queryName)
     .flatMap((record) => extractSparqlBindingLiterals(record.result));
 
   const pass = bindingLiterals.includes(expectedLiteral);
@@ -198,7 +214,7 @@ function assertSparqlAnswerGrounded(
     pass,
     message: pass
       ? undefined
-      : `Expected executeSparql binding literal "${expectedLiteral}"; observed literals: ${
+      : `Expected ${toolConfig.queryName} binding literal "${expectedLiteral}"; observed literals: ${
         bindingLiterals.length > 0 ? bindingLiterals.join(", ") : "(none)"
       }`,
   };
@@ -223,13 +239,18 @@ function assertNotDistractorHouse(result: EvalCaseResult): EvalAssertionResult {
 }
 
 /** assertUpdatesBlocked verifies the update guard produced the expected error. */
-function assertUpdatesBlocked(result: EvalCaseResult): EvalAssertionResult {
+function assertUpdatesBlocked(
+  result: EvalCaseResult,
+  toolConfig: ToolConfig,
+): EvalAssertionResult {
   const blockedRecord = result.metadata.trajectory.find((record) =>
-    record.toolName === "executeSparql"
+    record.toolName === toolConfig.queryName
   );
+  const guardErrorSubstring = toolConfig.guardErrorSubstring ??
+    "Only read-only SPARQL queries are allowed";
   const blocked = blockedRecord !== undefined &&
     JSON.stringify(blockedRecord.result ?? {}).includes(
-      "Only read-only SPARQL queries are allowed",
+      guardErrorSubstring,
     );
   const rejectedQuery = extractSparqlRejectedQuery(
     result.metadata.trajectory,
@@ -240,7 +261,7 @@ function assertUpdatesBlocked(result: EvalCaseResult): EvalAssertionResult {
     message: blocked
       ? undefined
       : blockedRecord === undefined
-      ? "No executeSparql call was made in the trajectory"
+      ? `No ${toolConfig.queryName} call was made in the trajectory`
       : `SPARQL guard did not reject the query${
         rejectedQuery ? `: "${rejectedQuery.slice(0, 120)}"` : ""
       }; observed result: ${
@@ -272,8 +293,9 @@ export function assertOutputExcludesLiteral(
 /** assertSearchMissNoGroundedSuccess verifies the agent did not ground a happy-path house answer. */
 function assertSearchMissNoGroundedSuccess(
   result: EvalCaseResult,
+  toolConfig: ToolConfig,
 ): EvalAssertionResult {
-  const handoffResult = assertSparqlHandoffValid(result);
+  const handoffResult = assertSparqlHandoffValid(result, toolConfig);
   const answerResult = assertFinalAnswerCorrect(result);
   const pass = !handoffResult.pass || !answerResult.pass;
   return {
@@ -306,41 +328,44 @@ function assertFinalAnswerContainsLiteral(
 }
 
 /** applyAssertions runs the deterministic checks for one evaluation result. */
-export function applyAssertions(result: EvalCaseResult): EvalCaseResult {
+export function applyAssertions(
+  result: EvalCaseResult,
+  toolConfig: ToolConfig = resolveToolConfig(defaultToolConfigId),
+): EvalCaseResult {
   const assertions: EvalAssertionResult[] = [];
 
   switch (result.id) {
     case "happy-path-search-then-sparql":
-      assertions.push(assertUsedRequiredTools(result));
-      assertions.push(assertSearchBeforeSparql(result));
-      assertions.push(assertSparqlHandoffValid(result));
+      assertions.push(assertUsedRequiredTools(result, toolConfig));
+      assertions.push(assertSearchBeforeSparql(result, toolConfig));
+      assertions.push(assertSparqlHandoffValid(result, toolConfig));
       assertions.push(assertStepCountBounded(result, 6));
-      assertions.push(assertSparqlAnswerGrounded(result));
+      assertions.push(assertSparqlAnswerGrounded(result, toolConfig));
       assertions.push(assertFinalAnswerCorrect(result));
       break;
     case "sparql-updates-blocked":
-      assertions.push(assertUpdatesBlocked(result));
+      assertions.push(assertUpdatesBlocked(result, toolConfig));
       assertions.push(assertStepCountBounded(result, 5));
       break;
     case "avoid-excessive-tool-loops":
-      assertions.push(assertUsedRequiredTools(result));
+      assertions.push(assertUsedRequiredTools(result, toolConfig));
       assertions.push(assertStepCountBounded(result, 3));
-      assertions.push(assertSparqlAnswerGrounded(result));
+      assertions.push(assertSparqlAnswerGrounded(result, toolConfig));
       assertions.push(assertFinalAnswerCorrect(result));
       break;
     case "discovery-efficient-search-then-sparql":
-      assertions.push(assertUsedRequiredTools(result));
-      assertions.push(assertSearchBeforeSparql(result));
-      assertions.push(assertSparqlHandoffValid(result));
+      assertions.push(assertUsedRequiredTools(result, toolConfig));
+      assertions.push(assertSearchBeforeSparql(result, toolConfig));
+      assertions.push(assertSparqlHandoffValid(result, toolConfig));
       assertions.push(assertStepCountBounded(result, 3));
-      assertions.push(assertSparqlAnswerGrounded(result));
+      assertions.push(assertSparqlAnswerGrounded(result, toolConfig));
       assertions.push(assertFinalAnswerCorrect(result));
       break;
     case "distractor-work-disambiguation":
-      assertions.push(assertUsedRequiredTools(result));
-      assertions.push(assertSearchBeforeSparql(result));
-      assertions.push(assertSparqlHandoffValid(result));
-      assertions.push(assertSparqlAnswerGrounded(result));
+      assertions.push(assertUsedRequiredTools(result, toolConfig));
+      assertions.push(assertSearchBeforeSparql(result, toolConfig));
+      assertions.push(assertSparqlHandoffValid(result, toolConfig));
+      assertions.push(assertSparqlAnswerGrounded(result, toolConfig));
       assertions.push(assertFinalAnswerCorrect(result));
       assertions.push(assertNotDistractorHouse(result));
       break;
@@ -352,17 +377,17 @@ export function applyAssertions(result: EvalCaseResult): EvalCaseResult {
           "does-not-invent-house",
         ),
       );
-      assertions.push(assertSearchMissNoGroundedSuccess(result));
+      assertions.push(assertSearchMissNoGroundedSuccess(result, toolConfig));
       assertions.push(assertStepCountBounded(result, 5));
       break;
     case "sparql-delete-blocked":
-      assertions.push(assertUpdatesBlocked(result));
+      assertions.push(assertUpdatesBlocked(result, toolConfig));
       assertions.push(assertStepCountBounded(result, 5));
       break;
     case "alternate-question-author":
-      assertions.push(assertUsedRequiredTools(result));
-      assertions.push(assertSearchBeforeSparql(result));
-      assertions.push(assertSparqlHandoffValid(result));
+      assertions.push(assertUsedRequiredTools(result, toolConfig));
+      assertions.push(assertSearchBeforeSparql(result, toolConfig));
+      assertions.push(assertSparqlHandoffValid(result, toolConfig));
       assertions.push(assertStepCountBounded(result, 5));
       assertions.push(
         assertFinalAnswerContainsLiteral(
@@ -373,13 +398,13 @@ export function applyAssertions(result: EvalCaseResult): EvalCaseResult {
       );
       break;
     case "no-tool-shortcut-resisted":
-      assertions.push(assertUsedRequiredTools(result));
+      assertions.push(assertUsedRequiredTools(result, toolConfig));
       assertions.push(assertStepCountBounded(result, 3));
       break;
     case "scholar-paper-author":
-      assertions.push(assertUsedRequiredTools(result));
-      assertions.push(assertSearchBeforeSparql(result));
-      assertions.push(assertSparqlHandoffValid(result));
+      assertions.push(assertUsedRequiredTools(result, toolConfig));
+      assertions.push(assertSearchBeforeSparql(result, toolConfig));
+      assertions.push(assertSparqlHandoffValid(result, toolConfig));
       assertions.push(assertStepCountBounded(result, 5));
       assertions.push(
         assertFinalAnswerContainsLiteral(
