@@ -3,7 +3,6 @@ import { ensureDir } from "@std/fs";
 import { dirname, fromFileUrl, join } from "@std/path";
 import { applyAssertions } from "../assertions/index.ts";
 import { evalCases } from "../cases/index.ts";
-import { writeJournalEntry } from "./eval-journal.ts";
 import { runEvalCase } from "../runner/agent-runner.ts";
 import type {
   EvalAssertionPassRate,
@@ -27,7 +26,7 @@ interface EvalCliOptions {
   minPassRate?: number;
 }
 
-/** validateProviderId prevents mislabeled provider metadata in journal entries. */
+/** validateProviderId prevents mislabeled provider metadata in eval results. */
 function validateProviderId(provider: string): void {
   if (!supportedProviderIds.has(provider)) {
     throw new Error(
@@ -430,16 +429,6 @@ if (import.meta.main) {
 
   const outputPath = await writeResults(suiteResult);
   console.log(`Wrote results to ${outputPath}`);
-
-  const entryDirectory = await writeJournalEntry(
-    suiteResult,
-    selectedEvalCases,
-    {
-      filterRaw: cliOptions.filterRaw,
-      trialCount: cliOptions.trialCount,
-    },
-  );
-  console.log(`Wrote journal entry to ${entryDirectory}`);
 
   if (statsResult) {
     if (!statsResult.success) {

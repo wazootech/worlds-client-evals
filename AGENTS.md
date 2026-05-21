@@ -25,13 +25,6 @@ A single evaluation scenario defined by an id, description, prompt, and maximum
 step budget. Cases exercise specific agent behaviors like search-then-SPARQL
 handoff, SPARQL guard enforcement, or distractor disambiguation.
 
-### Journal entry
-
-A committed folder under `journal/{entryId}/` that captures one live eval
-execution, including a manifest and per-case JSON with full tool trajectories.
-Journal entries are review and history artifacts, not the primary pass/fail
-signal.
-
 ### Assertion
 
 A deterministic code-level check applied to an eval result. Assertions verify
@@ -43,20 +36,21 @@ answer correctness.
 The ordered list of tool calls made by the agent during an eval case. The
 expected pattern is `searchWorld` followed by `executeSparql`.
 
-## Agent evals CI and journal pull requests
+## Agent evals CI and artifacts
 
 The [Agent evals](.github/workflows/evals.yml) workflow is the credentialed
-baseline runner. After each live run it persists `journal/{entryId}/` and opens
-a pull request automatically (branch `journal/{entryId}`, label `journal`). Do
-not hand-commit journal entries from CI runs; let the workflow publish them.
+baseline runner. After each live run it uploads `results/*.json` as a workflow
+artifact and publishes a best-effort GitHub Discussion in the `Eval reports`
+category when that category exists. Generated trajectories are not committed to
+this repository.
 
 The workflow job may exit non-zero when assertions or pass-rate gates fail even
-though the journal PR was created. Treat assertion results as the health signal;
-the journal PR is for trajectory review only.
+though the results artifact was uploaded. Treat assertion results as the health
+signal; artifacts are trajectory evidence only.
 
-Repository prerequisite: **Allow GitHub Actions to create and approve pull
-requests** must be enabled under Actions workflow permissions, or PR creation
-will fail after the journal branch is pushed.
+Repository prerequisite: GitHub Discussions must be enabled with a dedicated
+category named `Eval reports`. If the category is missing, artifact upload still
+works and discussion publication is skipped with a warning.
 
 ## Declarative clarity and naming conventions
 

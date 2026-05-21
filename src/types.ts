@@ -90,38 +90,3 @@ export interface EvalStatsResult {
   success: boolean;
   casePassRates: EvalCasePassRate[];
 }
-
-/** EvalJournalCaseMetadata captures stable metadata stored in a committed journal case record. */
-export interface EvalJournalCaseMetadata {
-  providerId: string;
-  modelId: string;
-  stepCount: number;
-  finishReason?: string;
-  trajectory: EvalToolRecord[];
-}
-
-/** EvalJournalCaseRecord stores the committed journal payload for one case. */
-export interface EvalJournalCaseRecord {
-  id: string;
-  description: string;
-  prompt: string;
-  output: string;
-  success: boolean;
-  metadata: EvalJournalCaseMetadata;
-  assertions: EvalAssertionResult[];
-  toolSequence: string[];
-  error?: string;
-}
-
-/** EvalJournalManifest stores entry-level metadata for one committed journal folder. */
-export interface EvalJournalManifest {
-  timestamp: string;
-  filter: string | null;
-  providerId: string;
-  modelId: string;
-  caseIds: string[];
-  suiteSuccess: boolean;
-  trialCount: number;
-  gitSha?: string;
-  importedFrom?: string;
-}

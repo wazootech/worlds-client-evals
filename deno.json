@@ -20,7 +20,6 @@
   ],
   "tasks": {
     "evals": "deno run -A --env ./src/cli/run.ts",
-    "import-goldens": "deno run -A ./scripts/import-goldens.ts",
     "test": "deno test --allow-all --unstable-kv",
     "fmt": "deno fmt",
     "fmt:check": "deno fmt --check",

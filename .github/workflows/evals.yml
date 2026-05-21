@@ -1,8 +1,11 @@
 name: Agent evals
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  discussions: write
+
+env:
+  EVAL_DISCUSSION_CATEGORY: Eval reports
 
 on:
   schedule:
@@ -44,7 +47,7 @@ jobs:
             exit 0
           fi
 
-          # Harness-relevant paths only (ignore journal/ entry-only churn).
+          # Harness-relevant paths only.
           HARNESS_PATHS=(
             "src/"
             "tests/"
@@ -122,85 +125,109 @@ jobs:
             exit 2
           fi
 
-      - name: Resolve journal entry id
-        id: journal_meta
+      - name: Upload eval results artifact
+        id: upload_results
+        if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code != '2'
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results-${{ github.run_id }}
+          path: results/*.json
+          if-no-files-found: error
+
+      - name: Publish eval report discussion
+        if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code != '2'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_NAME: eval-results-${{ github.run_id }}
+          ARTIFACT_URL: ${{ steps.upload_results.outputs.artifact-url }}
+          EXIT_CODE: ${{ steps.eval.outputs.exit_code }}
+          FILTER: ${{ github.event.inputs.filter }}
+          MIN_PASS_RATE: ${{ github.event.inputs.min_pass_rate }}
+          TRIALS: ${{ github.event.inputs.trials }}
+        run: |
+          REPOSITORY_OWNER="${GITHUB_REPOSITORY_OWNER}"
+          REPOSITORY_NAME="${GITHUB_REPOSITORY#*/}"
+          WORKFLOW_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          SHORT_SHA="${GITHUB_SHA::7}"
+          STATUS="pass"
+          if [ "$EXIT_CODE" = "1" ]; then
+            STATUS="fail"
+          fi
+
+          if [ "$GITHUB_EVENT_NAME" = "schedule" ]; then
+            TRIALS="10"
+            MIN_PASS_RATE="0.8"
+          fi
+          if [ -z "$TRIALS" ]; then
+            TRIALS="10"
+          fi
+          if [ -z "$FILTER" ]; then
+            FILTER="full suite"
+          fi
+          if [ -z "$MIN_PASS_RATE" ]; then
+            MIN_PASS_RATE="not set"
+          fi
+
+          CATEGORY_ID=$(gh api graphql \
+            -f query='query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { discussionCategories(first: 50) { nodes { id name } } } }' \
+            -F owner="$REPOSITORY_OWNER" \
+            -F name="$REPOSITORY_NAME" \
+            --jq '.data.repository.discussionCategories.nodes[] | select(.name == "'"$EVAL_DISCUSSION_CATEGORY"'") | .id')
+
+          if [ -z "$CATEGORY_ID" ]; then
+            echo "::warning::GitHub Discussions category '${EVAL_DISCUSSION_CATEGORY}' was not found; skipping eval report discussion."
+            exit 0
+          fi
+
+          REPOSITORY_ID=$(gh api graphql \
+            -f query='query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { id } }' \
+            -F owner="$REPOSITORY_OWNER" \
+            -F name="$REPOSITORY_NAME" \
+            --jq '.data.repository.id')
+
+          TITLE="Agent evals: ${STATUS} for ${SHORT_SHA} (${GITHUB_RUN_ID})"
+          BODY=$(cat <<EOF
+          ## Eval report
+
+          | Field | Value |
+          | :---- | :---- |
+          | Status | ${STATUS} |
+          | Trigger | ${GITHUB_EVENT_NAME} |
+          | Commit | ${GITHUB_SHA} |
+          | Filter | ${FILTER} |
+          | Trials | ${TRIALS} |
+          | Minimum pass rate | ${MIN_PASS_RATE} |
+          | Workflow run | ${WORKFLOW_URL} |
+          | Artifact | [${ARTIFACT_NAME}](${ARTIFACT_URL}) |
+
+          Assertions and pass-rate gates determine harness health. Generated trajectories are uploaded as workflow artifacts and are not committed to this repository.
+          EOF
+          )
+
+          gh api graphql \
+            -f query='mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) { createDiscussion(input: { repositoryId: $repositoryId, categoryId: $categoryId, title: $title, body: $body }) { discussion { url } } }' \
+            -F repositoryId="$REPOSITORY_ID" \
+            -F categoryId="$CATEGORY_ID" \
+            -F title="$TITLE" \
+            -F body="$BODY" \
+            --jq '.data.createDiscussion.discussion.url'
+
+      - name: Summarize eval results
         if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code != '2'
         run: |
-          if [ ! -f journal/.last-entry-id ]; then
-            echo "No journal/.last-entry-id marker — skipping pull request."
-            exit 0
-          fi
-          ENTRY_ID=$(tr -d '\n' < journal/.last-entry-id)
-          if [ ! -f "journal/${ENTRY_ID}/manifest.json" ]; then
-            echo "Missing journal/${ENTRY_ID}/manifest.json — skipping pull request."
-            exit 0
-          fi
-          echo "entry_id=${ENTRY_ID}" >> "$GITHUB_OUTPUT"
-
-      - name: Build pull request body
-        if: steps.journal_meta.outputs.entry_id != ''
-        run: |
-          ENTRY_ID='${{ steps.journal_meta.outputs.entry_id }}'
-          MANIFEST="journal/${ENTRY_ID}/manifest.json"
-          FILTER_LABEL=$(jq -r 'if .filter == null then "full suite" else .filter end' "$MANIFEST")
-          PROVIDER_ID=$(jq -r .providerId "$MANIFEST")
-          MODEL_ID=$(jq -r .modelId "$MANIFEST")
-          SUITE_SUCCESS=$(jq -r .suiteSuccess "$MANIFEST")
-          TRIAL_COUNT=$(jq -r .trialCount "$MANIFEST")
-          GIT_SHA=$(jq -r '.gitSha // "unknown"' "$MANIFEST")
-          CASE_COUNT=$(jq -r '.caseIds | length' "$MANIFEST")
-          TRIGGER="${{ github.event_name }}"
-          WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
           {
-            echo "## Journal entry"
+            echo "## Eval results"
             echo ""
-            echo "Automated agent eval journal entry from \`${TRIGGER}\`."
-            echo ""
-            echo "| Field | Value |"
-            echo "| :---- | :---- |"
-            echo "| Entry ID | \`${ENTRY_ID}\` |"
-            echo "| Provider / model | ${PROVIDER_ID} / ${MODEL_ID} |"
-            echo "| Filter | ${FILTER_LABEL} |"
-            echo "| Cases recorded | ${CASE_COUNT} |"
-            echo "| Suite success | ${SUITE_SUCCESS} |"
-            echo "| Trials | ${TRIAL_COUNT} |"
-            echo "| Git SHA | ${GIT_SHA} |"
-            echo "| Workflow run | ${WORKFLOW_URL} |"
-            echo ""
-            echo "Assertions and pass-rate gates determine harness health; this PR is the trajectory record for review."
-          } > pr-body.md
-
-      - name: Open journal entry pull request
-        id: journal_pull_request
-        if: steps.journal_meta.outputs.entry_id != ''
-        uses: peter-evans/create-pull-request@v8
-        with:
-          branch: journal/${{ steps.journal_meta.outputs.entry_id }}
-          commit-message: Add journal entry ${{ steps.journal_meta.outputs.entry_id }}
-          title: Journal entry `${{ steps.journal_meta.outputs.entry_id }}`
-          body-path: pr-body.md
-          add-paths: |
-            journal/${{ steps.journal_meta.outputs.entry_id }}/**
-          labels: journal
-
-      - name: Summarize journal pull request
-        if: steps.journal_pull_request.outputs.pull-request-url != ''
-        run: |
-          {
-            echo "## Journal pull request"
-            echo ""
-            echo "Opened [journal entry PR](${{ steps.journal_pull_request.outputs.pull-request-url }}) for \`${{ steps.journal_meta.outputs.entry_id }}\`."
+            echo "Uploaded the latest eval JSON files as the \`eval-results-${{ github.run_id }}\` workflow artifact."
+            echo "Published a best-effort GitHub Discussion in the \`${EVAL_DISCUSSION_CATEGORY}\` category when that category exists."
+            echo "Assertions and pass-rate gates determine harness health; generated trajectories are not committed to this repository."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail job when eval assertions did not pass
         if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code == '1'
         run: |
-          if [ -n "${{ steps.journal_meta.outputs.entry_id }}" ]; then
-            echo "Eval assertions or pass-rate gate failed; see workflow logs and the journal pull request."
-          else
-            echo "Eval run failed before a journal entry was written; see workflow logs."
-          fi
+          echo "Eval assertions or pass-rate gate failed; see workflow logs and uploaded eval results."
           exit 1
 
   skipped:
