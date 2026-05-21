@@ -11,6 +11,7 @@ import {
 } from "../fixtures/primary-world.ts";
 import {
   PAPER_AUTHOR_LITERAL as SCHOLAR_AUTHOR_LITERAL,
+  PAPER_VENUE_LITERAL as SCHOLAR_VENUE_LITERAL,
 } from "../fixtures/scholar-world.ts";
 
 /** normalizeOutputText canonicalizes free-form final text before tolerant comparison. */
@@ -413,6 +414,24 @@ export function applyAssertions(
           "final-answer-author-correct",
         ),
       );
+      break;
+    case "scholar-paper-venue":
+      assertions.push(assertUsedRequiredTools(result, toolConfig));
+      assertions.push(assertSearchBeforeSparql(result, toolConfig));
+      assertions.push(assertSparqlHandoffValid(result, toolConfig));
+      assertions.push(assertStepCountBounded(result, 5));
+      assertions.push(
+        assertFinalAnswerContainsLiteral(
+          result,
+          SCHOLAR_VENUE_LITERAL,
+          "final-answer-venue-correct",
+        ),
+      );
+      break;
+    case "scholar-paper-properties":
+      assertions.push(assertUsedRequiredTools(result, toolConfig));
+      assertions.push(assertSearchBeforeSparql(result, toolConfig));
+      assertions.push(assertStepCountBounded(result, 5));
       break;
     default:
       assertions.push({

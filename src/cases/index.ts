@@ -83,4 +83,22 @@ export const evalCases: EvalCaseDefinition[] = [
       `Find the author of the paper with label "${SCHOLAR_PAPER_SEARCH_LABEL}". First call {{discovery}} with exactly "${SCHOLAR_PAPER_SEARCH_LABEL}". Then use one {{query}} SELECT that reads the vocab:author from the discovered paper URI. Answer with only the author literal.`,
     maxSteps: 5,
   },
+  {
+    id: "scholar-paper-venue",
+    description:
+      "Scholar fixture resolves venue literal via search then SPARQL property inspection",
+    fixtureId: "scholar",
+    promptTemplate:
+      `Find the venue of the paper with label "${SCHOLAR_PAPER_SEARCH_LABEL}". First call {{discovery}} with exactly "${SCHOLAR_PAPER_SEARCH_LABEL}". Then use one {{query}} SELECT that reads the vocab:venue from the discovered paper URI. Answer with only the venue literal.`,
+    maxSteps: 5,
+  },
+  {
+    id: "scholar-paper-properties",
+    description:
+      "Scholar fixture enumerates all properties of a known resource via SPARQL",
+    fixtureId: "scholar",
+    promptTemplate:
+      `List every property of the paper with label "${SCHOLAR_PAPER_SEARCH_LABEL}". First call {{discovery}} with exactly "${SCHOLAR_PAPER_SEARCH_LABEL}". Then use one {{query}} SELECT ?p ?o WHERE { <discovered-uri> ?p ?o } to enumerate all property-value pairs of the discovered paper URI. Answer with each property and value.`,
+    maxSteps: 5,
+  },
 ];
