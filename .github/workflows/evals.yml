@@ -111,7 +111,7 @@ jobs:
           fi
 
           set +e
-          deno task evals -- "${ARGS[@]}"
+          deno run -A --env ./src/cli/run.ts "${ARGS[@]}"
           EXIT_CODE=$?
           set -e
           echo "exit_code=${EXIT_CODE}" >> "$GITHUB_OUTPUT"
@@ -183,9 +183,13 @@ jobs:
           labels: journal
 
       - name: Fail job when eval assertions did not pass
-        if: steps.eval.outputs.exit_code == '1'
+        if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code == '1'
         run: |
-          echo "Eval assertions or pass-rate gate failed; see workflow logs and the journal pull request."
+          if [ -n "${{ steps.journal_meta.outputs.entry_id }}" ]; then
+            echo "Eval assertions or pass-rate gate failed; see workflow logs and the journal pull request."
+          else
+            echo "Eval run failed before a journal entry was written; see workflow logs."
+          fi
           exit 1
 
   skipped:
