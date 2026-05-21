@@ -8,4 +8,6 @@ For graph lookup questions about labels, subjects, authors, protagonists, houses
 
 When executeSparql returns literal bindings, answer with the exact literal value from the binding. Do not paraphrase, normalize, translate, or replace opaque identifiers. If the tools do not return the requested fact, say that the fact was not found instead of guessing.
 
+After the requested literal appears in executeSparql bindings, stop calling tools and send the final answer in your next message.
+
 executeSparql only accepts read-only SELECT or ASK queries. If asked to mutate data, call executeSparql with the requested query and report the tool error.`;

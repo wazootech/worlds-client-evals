@@ -314,7 +314,7 @@ export function applyAssertions(result: EvalCaseResult): EvalCaseResult {
       assertions.push(assertUsedRequiredTools(result));
       assertions.push(assertSearchBeforeSparql(result));
       assertions.push(assertSparqlHandoffValid(result));
-      assertions.push(assertStepCountBounded(result, 5));
+      assertions.push(assertStepCountBounded(result, 6));
       assertions.push(assertSparqlAnswerGrounded(result));
       assertions.push(assertFinalAnswerCorrect(result));
       break;

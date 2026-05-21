@@ -58,11 +58,12 @@ API key.
 
 ## CI
 
-| Layer              | Command           | API key | When                                                                                                  |
-| :----------------- | :---------------- | :------ | :---------------------------------------------------------------------------------------------------- |
-| Unit tests         | `deno task ci`    | No      | Every push                                                                                            |
-| Live agent evals   | `deno task evals` | Yes     | Manual dispatch                                                                                       |
-| Scheduled baseline | `--trials 10`     | Yes     | Weekly (Mon 06:00 UTC), skipped if no harness commits in 7 days; opens a PR with `journal/{entryId}/` |
+| Layer              | Command           | API key | When                                                                                                          |
+| :----------------- | :---------------- | :------ | :------------------------------------------------------------------------------------------------------------ |
+| Unit tests         | `deno task ci`    | No      | Every push                                                                                                    |
+| Live agent evals   | `deno task evals` | Yes     | Manual dispatch                                                                                               |
+| Scheduled baseline | `--trials 10`     | Yes     | Weekly (Mon 06:00 UTC), skipped if no harness commits in 7 days; opens a labeled PR with `journal/{entryId}/` |
+| Manual dispatch    | configurable      | Yes     | Same journal PR flow as the scheduled baseline                                                                |
 
 ## Layout
 
@@ -79,6 +80,24 @@ API key.
 | `tests/`                        | Deterministic unit tests                       |
 | `journal/`                      | Committed eval journal                         |
 | `results/`                      | Local run output (gitignored)                  |
+
+## Journal pull requests from CI
+
+The [Agent evals](.github/workflows/evals.yml) workflow writes
+`journal/{entryId}/` on every credentialed run (pass or fail), then opens a pull
+request on branch `journal/{entryId}` with the `journal` label. The workflow job
+may still fail when assertions or pass-rate gates fail; the PR is the trajectory
+record for review.
+
+One-time repository setup: under **Settings → Actions → General → Workflow
+permissions**, enable **Allow GitHub Actions to create and approve pull
+requests**. Without this, the workflow can push the journal branch but cannot
+open the PR. Org admins can also enable it via API:
+
+```bash
+gh api --method PUT "repos/OWNER/REPO/actions/permissions/workflow" \
+  --input - <<< '{"default_workflow_permissions":"write","can_approve_pull_request_reviews":true}'
+```
 
 ## Evaluation Policy
 

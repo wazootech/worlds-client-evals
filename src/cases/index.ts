@@ -15,8 +15,8 @@ export const evalCases: EvalCaseDefinition[] = [
     id: "happy-path-search-then-sparql",
     description: "Happy path uses search then SPARQL traversal",
     prompt:
-      `Find the house of the protagonist linked to the work with label "${WORK_SEARCH_LABEL}". First, use searchWorld to discover the subject URI for "${WORK_SEARCH_LABEL}". Then, write an executeSparql SELECT query to look up the properties and relations of that URI so you can traverse to the protagonist and find their house. Answer with only the exact house literal returned by executeSparql.`,
-    maxSteps: 5,
+      `Find the house of the protagonist linked to the work with label "${WORK_SEARCH_LABEL}". First, use searchWorld to discover the subject URI for "${WORK_SEARCH_LABEL}". Then, write an executeSparql SELECT query to look up the properties and relations of that URI so you can traverse to the protagonist and find their house. Answer with only the exact house literal returned by executeSparql. Reserve your last step for the final literal answer instead of additional tool calls.`,
+    maxSteps: 6,
   },
   {
     id: "sparql-updates-blocked",

@@ -43,6 +43,21 @@ answer correctness.
 The ordered list of tool calls made by the agent during an eval case. The
 expected pattern is `searchWorld` followed by `executeSparql`.
 
+## Agent evals CI and journal pull requests
+
+The [Agent evals](.github/workflows/evals.yml) workflow is the credentialed
+baseline runner. After each live run it persists `journal/{entryId}/` and opens
+a pull request automatically (branch `journal/{entryId}`, label `journal`). Do
+not hand-commit journal entries from CI runs; let the workflow publish them.
+
+The workflow job may exit non-zero when assertions or pass-rate gates fail even
+though the journal PR was created. Treat assertion results as the health signal;
+the journal PR is for trajectory review only.
+
+Repository prerequisite: **Allow GitHub Actions to create and approve pull
+requests** must be enabled under Actions workflow permissions, or PR creation
+will fail after the journal branch is pushed.
+
 ## Declarative clarity and naming conventions
 
 To preserve maximum maintenance legibility, prioritize expressive semantics over
