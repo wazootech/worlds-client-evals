@@ -46,11 +46,14 @@ API key.
 | `--permit-no-files`  | Exit 0 when the filter matches no cases (default: error)                              |
 | `--trials <N>`       | Run each selected case `N` times and aggregate pass rates (default `1`)               |
 | `--min-pass-rate`    | With `--trials`, require each case pass rate ≥ threshold (0–1); default requires 100% |
+| `--tool-config <id>` | Run with a named tool configuration (default `baseline`)                              |
+| `--compare <a,b>`    | Run the same selected cases against multiple tool configs and write a diff artifact   |
 
 ## Output
 
 - **Summary:** per-case pass/fail, step count, tool names, assertion lines
-- **Local scratch:** `results/latest.json` (gitignored)
+- **Local scratch:** `results/latest.json`, `results/stats-latest.json`, and
+  `results/compare-*.json` (gitignored)
 - **Exit code:** `0` when all cases pass; `1` on failure; `2` on fatal API abort
   before a full result is available
 
@@ -69,6 +72,7 @@ API key.
 | :------------------------------ | :--------------------------------------------- |
 | `src/cli/run.ts`                | CLI entry, filtering, suite execution          |
 | `src/runner/`                   | Agent execution, system prompt, trajectory     |
+| `src/tool-configs/`             | Named tool-set registry for tool iteration     |
 | `src/tools/`                    | Eval-isolated tools and SPARQL read-only guard |
 | `src/assertions/`               | Per-case deterministic assertions              |
 | `src/cases/`                    | Scenario catalog                               |
@@ -99,3 +103,27 @@ discussion publication with a warning.
   signals only; do not cite them as benchmark evidence.
 - Add real dogfooding failures back into `src/cases/` and `src/assertions/` so
   important regressions stay caught.
+
+## Tool configuration iteration
+
+The default `baseline` tool config maps the discovery role to `searchWorld` and
+the query role to `executeSparql`. Case prompts use semantic placeholders such
+as `{{discovery}}` and `{{query}}`, so new tool configs can swap tool names
+without rewriting the scenario catalog.
+
+To test one config:
+
+```sh
+deno task evals --tool-config baseline --trials 10 --min-pass-rate 0.7
+```
+
+To compare configs after registering another config in `src/tool-configs/`:
+
+```sh
+deno task evals --compare baseline,experimental --trials 10 --min-pass-rate 0.7
+deno run --allow-read --allow-env ./scripts/render-compare-report.ts
+```
+
+Comparison runs write per-config outputs plus a side-by-side
+`results/compare-*.json` artifact for spotting case-level regressions and
+assertion-level near misses.

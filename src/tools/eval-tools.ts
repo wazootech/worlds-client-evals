@@ -31,7 +31,7 @@ export function createEvalTools(client: Client) {
     }),
     executeSparql: tool({
       description:
-        "Execute a read-only SPARQL SELECT or ASK query against the RDF graph. Use this after searchWorld to traverse exact predicates and return grounded binding values. Final answers should preserve literal binding values exactly.",
+        "Execute a read-only SPARQL SELECT or ASK query against the RDF graph. Use this after searchWorld to traverse exact predicates and return grounded binding values. To inspect all properties of a known resource URI, use: SELECT ?p ?o WHERE { <uri> ?p ?o } — this pattern discovers what predicates and values a resource has before writing a targeted query. Final answers should preserve literal binding values exactly.",
       inputSchema: z.object({
         query: z.string().describe(
           "The raw read-only SPARQL query string. Only SELECT and ASK are allowed.",

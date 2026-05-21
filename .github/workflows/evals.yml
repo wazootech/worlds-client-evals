@@ -25,6 +25,14 @@ on:
         description: Minimum per-case pass rate when trials > 1 (0-1)
         required: false
         default: "0.8"
+      tool_config:
+        description: Single tool config ID (e.g. baseline, with-resolve-resource)
+        required: false
+        default: ""
+      compare:
+        description: Comma-separated pair of config IDs to compare (e.g. baseline,with-resolve-resource)
+        required: false
+        default: ""
 
 jobs:
   check-activity:
@@ -113,6 +121,16 @@ jobs:
           if [ -n "$MIN_PASS_RATE" ]; then
             ARGS+=(--min-pass-rate "$MIN_PASS_RATE")
           fi
+          echo "is_compare=false" >> "$GITHUB_OUTPUT"
+          if [ -n "${{ github.event.inputs.compare }}" ]; then
+            ARGS=(--compare "${{ github.event.inputs.compare }}" --trials "$TRIALS")
+            if [ -n "$MIN_PASS_RATE" ]; then
+              ARGS+=(--min-pass-rate "$MIN_PASS_RATE")
+            fi
+            echo "is_compare=true" >> "$GITHUB_OUTPUT"
+          elif [ -n "${{ github.event.inputs.tool_config }}" ]; then
+            ARGS+=(--tool-config "${{ github.event.inputs.tool_config }}")
+          fi
 
           set +e
           deno run -A --env ./src/cli/run.ts "${ARGS[@]}"
@@ -133,6 +151,23 @@ jobs:
           name: eval-results-${{ github.run_id }}
           path: results/*.json
           if-no-files-found: error
+
+      - name: Render eval report
+        if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code != '2'
+        env:
+          ARTIFACT_NAME: eval-results-${{ github.run_id }}
+          ARTIFACT_URL: ${{ steps.upload_results.outputs.artifact-url }}
+          EXIT_CODE: ${{ steps.eval.outputs.exit_code }}
+          FILTER: ${{ github.event.inputs.filter }}
+          MIN_PASS_RATE: ${{ github.event.inputs.min_pass_rate }}
+          TRIALS: ${{ github.event.inputs.trials }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ "${{ steps.eval.outputs.is_compare }}" = "true" ]; then
+            deno run --allow-read --allow-env ./scripts/render-compare-report.ts > eval-report.md
+          else
+            deno run --allow-read --allow-env ./scripts/render-eval-report.ts > eval-report.md
+          fi
 
       - name: Publish eval report discussion
         if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code != '2'
@@ -187,23 +222,7 @@ jobs:
             --jq '.data.repository.id')
 
           TITLE="Agent evals: ${STATUS} for ${SHORT_SHA} (${GITHUB_RUN_ID})"
-          BODY=$(cat <<EOF
-          ## Eval report
-
-          | Field | Value |
-          | :---- | :---- |
-          | Status | ${STATUS} |
-          | Trigger | ${GITHUB_EVENT_NAME} |
-          | Commit | ${GITHUB_SHA} |
-          | Filter | ${FILTER} |
-          | Trials | ${TRIALS} |
-          | Minimum pass rate | ${MIN_PASS_RATE} |
-          | Workflow run | ${WORKFLOW_URL} |
-          | Artifact | [${ARTIFACT_NAME}](${ARTIFACT_URL}) |
-
-          Assertions and pass-rate gates determine harness health. Generated trajectories are uploaded as workflow artifacts and are not committed to this repository.
-          EOF
-          )
+          BODY="$(cat eval-report.md)"
 
           gh api graphql \
             -f query='mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) { createDiscussion(input: { repositoryId: $repositoryId, categoryId: $categoryId, title: $title, body: $body }) { discussion { url } } }' \
@@ -216,13 +235,7 @@ jobs:
       - name: Summarize eval results
         if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code != '2'
         run: |
-          {
-            echo "## Eval results"
-            echo ""
-            echo "Uploaded the latest eval JSON files as the \`eval-results-${{ github.run_id }}\` workflow artifact."
-            echo "Published a best-effort GitHub Discussion in the \`${EVAL_DISCUSSION_CATEGORY}\` category when that category exists."
-            echo "Assertions and pass-rate gates determine harness health; generated trajectories are not committed to this repository."
-          } >> "$GITHUB_STEP_SUMMARY"
+          cat eval-report.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Fail job when eval assertions did not pass
         if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code == '1'

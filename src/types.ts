@@ -35,7 +35,8 @@ export interface EvalAssertionResult {
 export interface EvalCaseDefinition {
   id: string;
   description: string;
-  prompt: string;
+  prompt?: string;
+  promptTemplate?: string;
   maxSteps?: number;
   fixtureId?: string;
 }
@@ -57,6 +58,7 @@ export interface EvalCaseResult {
 export interface EvalSuiteResult {
   providerId: string;
   modelId: string;
+  toolConfigId?: string;
   timestamp: string;
   success: boolean;
   results: EvalCaseResult[];
@@ -84,9 +86,29 @@ export interface EvalCasePassRate {
 export interface EvalStatsResult {
   providerId: string;
   modelId: string;
+  toolConfigId?: string;
   timestamp: string;
   trialCount: number;
   minPassRate?: number;
   success: boolean;
   casePassRates: EvalCasePassRate[];
+}
+
+/** EvalCaseComparison summarizes one case across multiple tool configs. */
+export interface EvalCaseComparison {
+  id: string;
+  description: string;
+  passRatesByToolConfig: Record<string, EvalCasePassRate>;
+}
+
+/** EvalCompareResult stores side-by-side statistics for tool config experiments. */
+export interface EvalCompareResult {
+  providerId: string;
+  modelId: string;
+  timestamp: string;
+  trialCount: number;
+  minPassRate?: number;
+  toolConfigIds: string[];
+  statsResults: EvalStatsResult[];
+  caseComparisons: EvalCaseComparison[];
 }

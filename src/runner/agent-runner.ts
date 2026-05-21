@@ -1,6 +1,11 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateText, stepCountIs } from "ai";
-import { createEvalTools } from "../tools/eval-tools.ts";
+import {
+  compileEvalPrompt,
+  defaultToolConfigId,
+  resolveToolConfig,
+} from "../tool-configs/index.ts";
+import type { ToolConfig } from "../tool-configs/types.ts";
 import type { EvalCaseDefinition, EvalCaseResult } from "../types.ts";
 import type { Client } from "@worlds/client";
 import { createSeededWorldClient } from "../fixtures/primary-world.ts";
@@ -33,10 +38,23 @@ function resolveFixture(
 /** runEvalCase executes one evaluation scenario against the seeded world. */
 export async function runEvalCase(
   testCase: EvalCaseDefinition,
-  options?: { providerId?: string; modelId?: string },
+  options?: { providerId?: string; modelId?: string; toolConfig?: ToolConfig },
 ): Promise<EvalCaseResult> {
   const providerId = options?.providerId ?? "google";
   const modelId = options?.modelId ?? "gemini-3.1-flash-lite";
+  const toolConfig = options?.toolConfig ??
+    resolveToolConfig(defaultToolConfigId);
+  const prompt = compileEvalPrompt(
+    testCase.promptTemplate ?? testCase.prompt ?? "",
+    toolConfig,
+  );
+  const compiledSystemPrompt = compileEvalPrompt(
+    EVAL_AGENT_SYSTEM_PROMPT,
+    toolConfig,
+  );
+  const systemPrompt = toolConfig.systemPromptAdditions
+    ? `${compiledSystemPrompt}\n\n${toolConfig.systemPromptAdditions}`
+    : compiledSystemPrompt;
   const startedAt = Date.now();
   const emptyMetadata = {
     providerId,
@@ -49,20 +67,20 @@ export async function runEvalCase(
   try {
     const google = createGoogleGenerativeAI();
     const client = await resolveFixture(testCase)();
-    const tools = createEvalTools(client);
+    const tools = toolConfig.factory(client);
     const result = await generateText({
       model: google(modelId),
       tools,
-      system: EVAL_AGENT_SYSTEM_PROMPT,
+      system: systemPrompt,
       stopWhen: stepCountIs(testCase.maxSteps ?? 5),
-      prompt: testCase.prompt,
+      prompt,
     });
     const latencyMs = Date.now() - startedAt;
 
     return {
       id: testCase.id,
       description: testCase.description,
-      prompt: testCase.prompt,
+      prompt,
       output: result.text,
       success: true,
       metadata: {
@@ -87,7 +105,7 @@ export async function runEvalCase(
     return {
       id: testCase.id,
       description: testCase.description,
-      prompt: testCase.prompt,
+      prompt,
       output: "",
       success: false,
       metadata: {
