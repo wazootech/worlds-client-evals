@@ -14,8 +14,10 @@ import {
   PAPER_VENUE_LITERAL as SCHOLAR_VENUE_LITERAL,
 } from "../fixtures/scholar-world.ts";
 import {
-  CREATURE_LABEL as HIERARCHY_CREATURE_LABEL,
-  NEST_LOCATION_LITERAL as HIERARCHY_NEST_LOCATION_LITERAL,
+  HIERARCHY_CREATURE_LABEL,
+  HIERARCHY_DRAGON_LABEL,
+  HIERARCHY_NEST_LOCATION_LITERAL,
+  HIERARCHY_WYVERN_LABEL,
 } from "../fixtures/hierarchy-world.ts";
 
 /** normalizeOutputText canonicalizes free-form final text before tolerant comparison. */
@@ -208,6 +210,7 @@ function assertSparqlAnswerGrounded(
   result: EvalCaseResult,
   toolConfig: ToolConfig,
   expectedLiteral: string = EXPECTED_HOUSE_LITERAL,
+  assertionName: string = "sparql-answer-grounded",
 ): EvalAssertionResult {
   const bindingLiterals = result.metadata.trajectory
     .filter((record) => record.toolName === toolConfig.queryName)
@@ -215,12 +218,35 @@ function assertSparqlAnswerGrounded(
 
   const pass = bindingLiterals.includes(expectedLiteral);
   return {
-    name: "sparql-answer-grounded",
+    name: assertionName,
     pass,
     message: pass
       ? undefined
       : `Expected ${toolConfig.queryName} binding literal "${expectedLiteral}"; observed literals: ${
         bindingLiterals.length > 0 ? bindingLiterals.join(", ") : "(none)"
+      }`,
+  };
+}
+
+/** assertSparqlAnswerExcludesLiteral verifies SPARQL bindings do not contain a forbidden literal. */
+function assertSparqlAnswerExcludesLiteral(
+  result: EvalCaseResult,
+  toolConfig: ToolConfig,
+  forbiddenLiteral: string,
+  assertionName: string,
+): EvalAssertionResult {
+  const bindingLiterals = result.metadata.trajectory
+    .filter((record) => record.toolName === toolConfig.queryName)
+    .flatMap((record) => extractSparqlBindingLiterals(record.result));
+
+  const pass = !bindingLiterals.includes(forbiddenLiteral);
+  return {
+    name: assertionName,
+    pass,
+    message: pass
+      ? undefined
+      : `Expected ${toolConfig.queryName} bindings to exclude "${forbiddenLiteral}"; observed literals: ${
+        bindingLiterals.join(", ")
       }`,
   };
 }
@@ -486,12 +512,57 @@ export function applyAssertions(
       assertions.push(assertSearchBeforeSparql(result, toolConfig));
       assertions.push(assertSparqlHandoffValid(result, toolConfig));
       assertions.push(assertStepCountBounded(result, 3));
+      assertions.push(
+        assertFinalAnswerContainsLiteral(
+          result,
+          HIERARCHY_DRAGON_LABEL,
+          "final-answer-dragon-subclass-correct",
+        ),
+      );
+      assertions.push(
+        assertFinalAnswerContainsLiteral(
+          result,
+          HIERARCHY_WYVERN_LABEL,
+          "final-answer-wyvern-subclass-correct",
+        ),
+      );
+      assertions.push(
+        assertSparqlAnswerGrounded(
+          result,
+          toolConfig,
+          HIERARCHY_DRAGON_LABEL,
+          "sparql-dragon-subclass-grounded",
+        ),
+      );
+      assertions.push(
+        assertSparqlAnswerGrounded(
+          result,
+          toolConfig,
+          HIERARCHY_WYVERN_LABEL,
+          "sparql-wyvern-subclass-grounded",
+        ),
+      );
       break;
     case "hierarchy-optional-pattern":
       assertions.push(assertUsedRequiredTools(result, toolConfig));
       assertions.push(assertSearchBeforeSparql(result, toolConfig));
       assertions.push(assertSparqlHandoffValid(result, toolConfig));
       assertions.push(assertStepCountBounded(result, 5));
+      assertions.push(
+        assertOutputExcludesLiteral(
+          result,
+          HIERARCHY_NEST_LOCATION_LITERAL,
+          "does-not-invent-optional-location",
+        ),
+      );
+      assertions.push(
+        assertSparqlAnswerExcludesLiteral(
+          result,
+          toolConfig,
+          HIERARCHY_NEST_LOCATION_LITERAL,
+          "sparql-does-not-bind-optional-location",
+        ),
+      );
       break;
     default:
       assertions.push({

@@ -9,14 +9,14 @@ import {
 } from "../fixtures/primary-world.ts";
 import { PAPER_SEARCH_LABEL as SCHOLAR_PAPER_SEARCH_LABEL } from "../fixtures/scholar-world.ts";
 import {
-  CREATURE_LABEL as HIERARCHY_CREATURE_LABEL,
-  CREATURE_SEARCH_QUERY as HIERARCHY_CREATURE_SEARCH_QUERY,
-  DRAGON_LABEL as HIERARCHY_DRAGON_LABEL,
-  TREASURE_LABEL as HIERARCHY_TREASURE_LABEL,
-  TREASURE_SEARCH_QUERY as HIERARCHY_TREASURE_SEARCH_QUERY,
+  HIERARCHY_CREATURE_DISCOVERY_QUERY,
+  HIERARCHY_CREATURE_LABEL,
+  HIERARCHY_DRAGON_LABEL,
+  HIERARCHY_TREASURE_DISCOVERY_QUERY,
+  HIERARCHY_TREASURE_LABEL,
+  HIERARCHY_WYVERN_LABEL,
   UNKNOWN_HIERARCHY_LABEL,
   WAZOO_VOCAB_NAMESPACE as HIERARCHY_VOCAB_NAMESPACE,
-  WYVERN_LABEL as HIERARCHY_WYVERN_LABEL,
 } from "../fixtures/hierarchy-world.ts";
 
 /** evalCases enumerates the phase-one scenarios for the Deno harness. */
@@ -116,7 +116,7 @@ export const evalCases: EvalCaseDefinition[] = [
     description: "Hierarchy fixture finds all subclasses of a known type",
     fixtureId: "hierarchy",
     promptTemplate:
-      `Find all types that are subclasses of the creature labeled "${HIERARCHY_CREATURE_LABEL}" using the fewest tool calls needed. First call {{discovery}} with exactly "${HIERARCHY_CREATURE_SEARCH_QUERY}" and use the subject field from that first hit. Then use exactly one {{query}} SELECT query of the form: SELECT ?label WHERE { ?sub <http://www.w3.org/2000/01/rdf-schema#subClassOf> <creature-uri-from-search> . ?sub <http://www.w3.org/2000/01/rdf-schema#label> ?label . } where <creature-uri-from-search> is the discovered subject URI. Answer with each subclass label.`,
+      `Find all types that are subclasses of the creature labeled "${HIERARCHY_CREATURE_LABEL}" using the fewest tool calls needed. First call {{discovery}} with exactly "${HIERARCHY_CREATURE_DISCOVERY_QUERY}" and use the subject field from that first hit. Then use exactly one {{query}} SELECT query of the form: SELECT ?label WHERE { ?sub <http://www.w3.org/2000/01/rdf-schema#subClassOf> <creature-uri-from-search> . ?sub <http://www.w3.org/2000/01/rdf-schema#label> ?label . } where <creature-uri-from-search> is the discovered subject URI. Answer with each subclass label.`,
     maxSteps: 3,
   },
   {
@@ -134,7 +134,7 @@ export const evalCases: EvalCaseDefinition[] = [
       "Hierarchy fixture resolves a multi-hop guarded treasure location",
     fixtureId: "hierarchy",
     promptTemplate:
-      `Find the dwelling location for the creature that guards the treasure labeled "${HIERARCHY_TREASURE_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_TREASURE_SEARCH_QUERY}" and use the subject field from that first hit. Then use one {{query}} SELECT that starts from the discovered treasure URI and traverses <${HIERARCHY_VOCAB_NAMESPACE}guardedBy>, then <${HIERARCHY_VOCAB_NAMESPACE}dwellsAt>, then <${HIERARCHY_VOCAB_NAMESPACE}locatedIn> ?location. Answer with only the location literal.`,
+      `Find the dwelling location for the creature that guards the treasure labeled "${HIERARCHY_TREASURE_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_TREASURE_DISCOVERY_QUERY}" and use the subject field from that first hit. Then use one {{query}} SELECT that starts from the discovered treasure URI and traverses <${HIERARCHY_VOCAB_NAMESPACE}guardedBy>, then <${HIERARCHY_VOCAB_NAMESPACE}dwellsAt>, then <${HIERARCHY_VOCAB_NAMESPACE}locatedIn> ?location. Answer with only the location literal.`,
     maxSteps: 5,
   },
   {
