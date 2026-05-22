@@ -110,21 +110,20 @@ export const evalCases: EvalCaseDefinition[] = [
     maxSteps: 5,
   },
   {
+    id: "hierarchy-sibling-class",
+    description: "Hierarchy fixture finds all subclasses of a known type",
+    fixtureId: "hierarchy",
+    promptTemplate:
+      `Find all types that are subclasses of the creature labeled "${HIERARCHY_CREATURE_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_CREATURE_LABEL}". Then use one {{query}} SELECT: SELECT ?sub ?label WHERE { ?sub <http://www.w3.org/2000/01/rdf-schema#subClassOf> <creature-uri-from-search> . ?sub <http://www.w3.org/2000/01/rdf-schema#label> ?label . } where <creature-uri-from-search> is the subject field from the {{discovery}} hit. Answer with each subclass label.`,
+    maxSteps: 5,
+  },
+  {
     id: "hierarchy-type-discovery",
     description:
       "Hierarchy fixture discovers type hierarchy via subClassOf traversal",
     fixtureId: "hierarchy",
     promptTemplate:
-      `Find the parent type of the creature labeled "${HIERARCHY_DRAGON_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_DRAGON_LABEL}". Then use one {{query}} SELECT that reads the rdfs:subClassOf from the discovered dragon URI to find what broader type it belongs to. Answer with only the parent type label.`,
-    maxSteps: 5,
-  },
-  {
-    id: "hierarchy-multi-hop",
-    description:
-      "Hierarchy fixture traverses three hops: guardedBy, dwellsAt, locatedIn",
-    fixtureId: "hierarchy",
-    promptTemplate:
-      `Find the location of the nest that guards the treasure labeled "${HIERARCHY_TREASURE_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_TREASURE_LABEL}". Then use one {{query}} SELECT that traverses from the discovered treasure URI through <${HIERARCHY_VOCAB_NAMESPACE}guardedBy> then <${HIERARCHY_VOCAB_NAMESPACE}dwellsAt> then <${HIERARCHY_VOCAB_NAMESPACE}locatedIn> to find the location literal. Answer with only the location literal.`,
+      `Find the broader parent type of the creature labeled "${HIERARCHY_DRAGON_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_DRAGON_LABEL}". Then use one {{query}} SELECT: SELECT ?parent ?label WHERE { <dragon-uri-from-search> <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?parent . ?parent <http://www.w3.org/2000/01/rdf-schema#label> ?label . } where <dragon-uri-from-search> is the subject field from the {{discovery}} hit. Answer with only the parent type label.`,
     maxSteps: 5,
   },
   {
