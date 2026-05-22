@@ -1,6 +1,6 @@
 import { assertEquals, assertFalse } from "@std/assert";
-import { createEvalTools } from "../../src/tools/eval-tools.ts";
-import { isReadOnlySparqlQuery } from "../../src/tools/sparql-guard.ts";
+import { createEvalTools } from "../../src/tools/create-eval-tools.ts";
+import { isReadOnlySparqlQuery } from "../../src/tools/is-read-only-sparql-query.ts";
 import {
   createSeededWorldClient,
   EXPECTED_HOUSE_LITERAL,
