@@ -7,7 +7,17 @@ import {
   WORK_SEARCH_LABEL,
   WORK_SUBJECT_URI,
 } from "../fixtures/primary-world.ts";
-import { PAPER_SEARCH_LABEL as SCHOLAR_PAPER_SEARCH_LABEL } from "../fixtures/scholar-world.ts";
+import { SCHOLAR_PAPER_SEARCH_LABEL } from "../fixtures/scholar-world.ts";
+import {
+  HIERARCHY_CREATURE_DISCOVERY_QUERY,
+  HIERARCHY_CREATURE_LABEL,
+  HIERARCHY_DRAGON_LABEL,
+  HIERARCHY_TREASURE_DISCOVERY_QUERY,
+  HIERARCHY_TREASURE_LABEL,
+  HIERARCHY_VOCAB_NAMESPACE,
+  HIERARCHY_WYVERN_LABEL,
+  UNKNOWN_HIERARCHY_LABEL,
+} from "../fixtures/hierarchy-world.ts";
 
 /** evalCases enumerates the phase-one scenarios for the Deno harness. */
 export const evalCases: EvalCaseDefinition[] = [
@@ -99,6 +109,48 @@ export const evalCases: EvalCaseDefinition[] = [
     fixtureId: "scholar",
     promptTemplate:
       `List every property of the paper with label "${SCHOLAR_PAPER_SEARCH_LABEL}". First call {{discovery}} with exactly "${SCHOLAR_PAPER_SEARCH_LABEL}". Then use one {{query}} SELECT ?p ?o WHERE { <discovered-uri> ?p ?o } to enumerate all property-value pairs of the discovered paper URI. Answer with each property and value.`,
+    maxSteps: 5,
+  },
+  {
+    id: "hierarchy-sibling-class",
+    description: "Hierarchy fixture finds all subclasses of a known type",
+    fixtureId: "hierarchy",
+    promptTemplate:
+      `Find all types that are subclasses of the creature labeled "${HIERARCHY_CREATURE_LABEL}" using the fewest tool calls needed. First call {{discovery}} with exactly "${HIERARCHY_CREATURE_DISCOVERY_QUERY}" and use the subject field from that first hit. Then use exactly one {{query}} SELECT query of the form: SELECT ?label WHERE { ?sub <http://www.w3.org/2000/01/rdf-schema#subClassOf> <creature-uri-from-search> . ?sub <http://www.w3.org/2000/01/rdf-schema#label> ?label . } where <creature-uri-from-search> is the discovered subject URI. Answer with each subclass label.`,
+    maxSteps: 3,
+  },
+  {
+    id: "hierarchy-type-discovery",
+    description:
+      "Hierarchy fixture discovers type hierarchy via subClassOf traversal",
+    fixtureId: "hierarchy",
+    promptTemplate:
+      `Find the broader parent type of the creature labeled "${HIERARCHY_DRAGON_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_DRAGON_LABEL}". Then use one {{query}} SELECT: SELECT ?parent ?label WHERE { <dragon-uri-from-search> <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?parent . ?parent <http://www.w3.org/2000/01/rdf-schema#label> ?label . } where <dragon-uri-from-search> is the subject field from the {{discovery}} hit. Answer with only the parent type label.`,
+    maxSteps: 5,
+  },
+  {
+    id: "hierarchy-multi-hop",
+    description:
+      "Hierarchy fixture resolves a multi-hop guarded treasure location",
+    fixtureId: "hierarchy",
+    promptTemplate:
+      `Find the dwelling location for the creature that guards the treasure labeled "${HIERARCHY_TREASURE_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_TREASURE_DISCOVERY_QUERY}" and use the subject field from that first hit. Then use one {{query}} SELECT that starts from the discovered treasure URI and traverses <${HIERARCHY_VOCAB_NAMESPACE}guardedBy>, then <${HIERARCHY_VOCAB_NAMESPACE}dwellsAt>, then <${HIERARCHY_VOCAB_NAMESPACE}locatedIn> ?location. Answer with only the location literal.`,
+    maxSteps: 5,
+  },
+  {
+    id: "hierarchy-no-join-invent",
+    description: "Hierarchy fixture search miss must not invent data",
+    fixtureId: "hierarchy",
+    promptTemplate:
+      `Find the creature with label "${UNKNOWN_HIERARCHY_LABEL}". First call {{discovery}} with exactly "${UNKNOWN_HIERARCHY_LABEL}". Then use {{query}} only if search returns a subject URI. If no matching subject is found, say the fact was not found. Do not guess or invent values.`,
+    maxSteps: 5,
+  },
+  {
+    id: "hierarchy-optional-pattern",
+    description: "Hierarchy fixture uses OPTIONAL to find absent data",
+    fixtureId: "hierarchy",
+    promptTemplate:
+      `Find the dwelling location of the wyvern labeled "${HIERARCHY_WYVERN_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_WYVERN_LABEL}". Then use one {{query}} SELECT with OPTIONAL { <wyvern-uri> <${HIERARCHY_VOCAB_NAMESPACE}dwellsAt> ?nest . ?nest <${HIERARCHY_VOCAB_NAMESPACE}locatedIn> ?location } to check whether the wyvern has a dwelling. Report what you find.`,
     maxSteps: 5,
   },
 ];

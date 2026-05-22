@@ -1,6 +1,9 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import { evalCases } from "../../src/cases/index.ts";
-import { parseCliOptions, selectEvalCases } from "../../src/cli/run.ts";
+import {
+  parseCliOptions,
+  selectEvalCases,
+} from "../../src/cli/parse-cli-options.ts";
 
 Deno.test("parseCliOptions rejects removed golden flags", () => {
   assertThrows(
@@ -15,11 +18,10 @@ Deno.test("parseCliOptions rejects removed golden flags", () => {
   );
 });
 
-Deno.test("parseCliOptions preserves raw filter alongside compiled regex", () => {
+Deno.test("parseCliOptions compiles filter regex from raw string", () => {
   const cliOptions = parseCliOptions(["--filter", "happy-path"]);
   const selectedEvalCases = selectEvalCases(evalCases, cliOptions);
 
-  assertEquals(cliOptions.filterRaw, "happy-path");
   assertEquals(selectedEvalCases.length, 1);
   assertEquals(selectedEvalCases[0]?.id, "happy-path-search-then-sparql");
 });

@@ -70,7 +70,7 @@ API key.
 
 | Path                            | Role                                           |
 | :------------------------------ | :--------------------------------------------- |
-| `src/cli/run.ts`                | CLI entry, filtering, suite execution          |
+| `src/cli/parse-cli-options.ts`  | CLI entry, filtering, suite execution          |
 | `src/runner/`                   | Agent execution, system prompt, trajectory     |
 | `src/tool-configs/`             | Named tool-set registry for tool iteration     |
 | `src/tools/`                    | Eval-isolated tools and SPARQL read-only guard |

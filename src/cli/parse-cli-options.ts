@@ -3,7 +3,7 @@ import { ensureDir } from "@std/fs";
 import { dirname, fromFileUrl, join } from "@std/path";
 import { applyAssertions } from "../assertions/index.ts";
 import { evalCases } from "../cases/index.ts";
-import { runEvalCase } from "../runner/agent-runner.ts";
+import { runEvalCase } from "../runner/run-eval-case.ts";
 import {
   defaultToolConfigId,
   resolveToolConfig,
@@ -26,7 +26,6 @@ const supportedProviderIds = new Set(["google"]);
 
 interface EvalCliOptions {
   filter?: RegExp;
-  filterRaw?: string;
   list: boolean;
   permitNoFiles: boolean;
   trialCount: number;
@@ -119,8 +118,7 @@ export function parseCliOptions(args: string[]): EvalCliOptions {
     );
   }
 
-  const filterRaw = parsedArgs.filter;
-  const filter = filterRaw ? parseFilter(filterRaw) : undefined;
+  const filter = parsedArgs.filter ? parseFilter(parsedArgs.filter) : undefined;
   const list = parsedArgs.list;
   const permitNoFiles = parsedArgs["permit-no-files"];
   let trialCount = parsedArgs.trials
@@ -151,7 +149,6 @@ export function parseCliOptions(args: string[]): EvalCliOptions {
 
   return {
     filter,
-    filterRaw,
     list,
     permitNoFiles,
     trialCount,

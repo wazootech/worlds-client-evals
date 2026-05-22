@@ -1,7 +1,7 @@
 import type { Client } from "@worlds/client";
 import { tool } from "ai";
 import { z } from "zod";
-import { isReadOnlySparqlQuery } from "./sparql-guard.ts";
+import { isReadOnlySparqlQuery } from "./is-read-only-sparql-query.ts";
 
 /** createEvalTools creates the isolated tool set used by the Deno eval harness. */
 export function createEvalTools(client: Client) {

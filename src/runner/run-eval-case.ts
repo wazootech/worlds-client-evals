@@ -10,13 +10,15 @@ import type { EvalCaseDefinition, EvalCaseResult } from "../types.ts";
 import type { Client } from "@worlds/client";
 import { createSeededWorldClient } from "../fixtures/primary-world.ts";
 import { createSeededScholarWorldClient } from "../fixtures/scholar-world.ts";
-import { EVAL_AGENT_SYSTEM_PROMPT } from "./prompt.ts";
-import { buildTrajectory } from "./trajectory.ts";
+import { createSeededHierarchyWorldClient } from "../fixtures/hierarchy-world.ts";
+import { EVAL_AGENT_SYSTEM_PROMPT } from "./eval-agent-system-prompt.ts";
+import { buildTrajectory } from "./build-trajectory.ts";
 
 /** fixtureFactories maps fixtureId to an async factory that returns a seeded world client. */
 const fixtureFactories: Record<string, () => Promise<Client>> = {
   primary: createSeededWorldClient,
   scholar: createSeededScholarWorldClient,
+  hierarchy: createSeededHierarchyWorldClient,
 };
 
 /** resolveFixture resolves the world client factory for a given test case. */
