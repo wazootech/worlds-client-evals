@@ -13,6 +13,7 @@ import {
   CREATURE_SEARCH_QUERY as HIERARCHY_CREATURE_SEARCH_QUERY,
   DRAGON_LABEL as HIERARCHY_DRAGON_LABEL,
   TREASURE_LABEL as HIERARCHY_TREASURE_LABEL,
+  TREASURE_SEARCH_QUERY as HIERARCHY_TREASURE_SEARCH_QUERY,
   UNKNOWN_HIERARCHY_LABEL,
   WAZOO_VOCAB_NAMESPACE as HIERARCHY_VOCAB_NAMESPACE,
   WYVERN_LABEL as HIERARCHY_WYVERN_LABEL,
@@ -133,7 +134,7 @@ export const evalCases: EvalCaseDefinition[] = [
       "Hierarchy fixture resolves a multi-hop guarded treasure location",
     fixtureId: "hierarchy",
     promptTemplate:
-      `Find the dwelling location for the creature that guards the treasure labeled "${HIERARCHY_TREASURE_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_TREASURE_LABEL}". Then use one {{query}} SELECT that starts from the discovered treasure URI and traverses <${HIERARCHY_VOCAB_NAMESPACE}guardedBy>, then <${HIERARCHY_VOCAB_NAMESPACE}dwellsAt>, then <${HIERARCHY_VOCAB_NAMESPACE}locatedIn> ?location. Answer with only the location literal.`,
+      `Find the dwelling location for the creature that guards the treasure labeled "${HIERARCHY_TREASURE_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_TREASURE_SEARCH_QUERY}" and use the subject field from that first hit. Then use one {{query}} SELECT that starts from the discovered treasure URI and traverses <${HIERARCHY_VOCAB_NAMESPACE}guardedBy>, then <${HIERARCHY_VOCAB_NAMESPACE}dwellsAt>, then <${HIERARCHY_VOCAB_NAMESPACE}locatedIn> ?location. Answer with only the location literal.`,
     maxSteps: 5,
   },
   {

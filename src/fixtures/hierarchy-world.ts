@@ -24,6 +24,8 @@ export const WYVERN_LABEL = "frostfang";
 export const NEST_LABEL = "dragon-roost";
 export const NEST_LOCATION_LITERAL = "volcanic-cavern";
 export const TREASURE_LABEL = "golden-hoard";
+/** TREASURE_SEARCH_QUERY is the tokenized lookup phrase that finds TREASURE_LABEL. */
+export const TREASURE_SEARCH_QUERY = "golden hoard";
 
 export const UNKNOWN_HIERARCHY_LABEL = "x7Qp2ZrK";
 
