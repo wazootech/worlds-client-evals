@@ -12,9 +12,7 @@ import {
   EXPECTED_HOUSE_LITERAL,
   WORK_SUBJECT_URI,
 } from "../../src/fixtures/primary-world.ts";
-import {
-  PAPER_AUTHOR_LITERAL as SCHOLAR_AUTHOR_LITERAL,
-} from "../../src/fixtures/scholar-world.ts";
+import { SCHOLAR_AUTHOR_LITERAL } from "../../src/fixtures/scholar-world.ts";
 
 /** createEvalCaseResult builds a minimal case result for assertion routing tests. */
 function createEvalCaseResult(

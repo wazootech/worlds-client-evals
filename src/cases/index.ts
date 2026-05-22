@@ -7,16 +7,16 @@ import {
   WORK_SEARCH_LABEL,
   WORK_SUBJECT_URI,
 } from "../fixtures/primary-world.ts";
-import { PAPER_SEARCH_LABEL as SCHOLAR_PAPER_SEARCH_LABEL } from "../fixtures/scholar-world.ts";
+import { SCHOLAR_PAPER_SEARCH_LABEL } from "../fixtures/scholar-world.ts";
 import {
   HIERARCHY_CREATURE_DISCOVERY_QUERY,
   HIERARCHY_CREATURE_LABEL,
   HIERARCHY_DRAGON_LABEL,
   HIERARCHY_TREASURE_DISCOVERY_QUERY,
   HIERARCHY_TREASURE_LABEL,
+  HIERARCHY_VOCAB_NAMESPACE,
   HIERARCHY_WYVERN_LABEL,
   UNKNOWN_HIERARCHY_LABEL,
-  WAZOO_VOCAB_NAMESPACE as HIERARCHY_VOCAB_NAMESPACE,
 } from "../fixtures/hierarchy-world.ts";
 
 /** evalCases enumerates the phase-one scenarios for the Deno harness. */

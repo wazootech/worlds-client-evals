@@ -10,8 +10,8 @@ import {
   EXPECTED_HOUSE_LITERAL,
 } from "../fixtures/primary-world.ts";
 import {
-  PAPER_AUTHOR_LITERAL as SCHOLAR_AUTHOR_LITERAL,
-  PAPER_VENUE_LITERAL as SCHOLAR_VENUE_LITERAL,
+  SCHOLAR_AUTHOR_LITERAL,
+  SCHOLAR_VENUE_LITERAL,
 } from "../fixtures/scholar-world.ts";
 import {
   HIERARCHY_CREATURE_LABEL,
