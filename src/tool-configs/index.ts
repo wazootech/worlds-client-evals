@@ -1,4 +1,5 @@
 import { createEvalTools } from "../tools/eval-tools.ts";
+import { strictEvalToolConfig } from "./strict-eval.ts";
 import type { ToolConfig } from "./types.ts";
 
 const baselineToolConfig: ToolConfig = {
@@ -14,6 +15,7 @@ const baselineToolConfig: ToolConfig = {
 /** toolConfigsById stores every named tool configuration available to evals. */
 export const toolConfigsById: Record<string, ToolConfig> = {
   [baselineToolConfig.id]: baselineToolConfig,
+  [strictEvalToolConfig.id]: strictEvalToolConfig,
 };
 
 /** defaultToolConfigId identifies the backwards-compatible eval tool set. */
