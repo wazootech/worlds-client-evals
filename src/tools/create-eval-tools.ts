@@ -1,14 +1,17 @@
 import type { Client } from "@worlds/client";
 import { tool } from "ai";
 import { z } from "zod";
+import {
+  EXECUTE_SPARQL_TOOL_DESCRIPTION,
+  SEARCH_WORLD_TOOL_DESCRIPTION,
+} from "./agent-tool-descriptions.ts";
 import { isReadOnlySparqlQuery } from "./is-read-only-sparql-query.ts";
 
 /** createEvalTools creates the isolated tool set used by the Deno eval harness. */
 export function createEvalTools(client: Client) {
   return {
     searchWorld: tool({
-      description:
-        "Search the RDF knowledge graph for labels, keywords, and semantic statements. Use this first to discover candidate subject URIs. Pass discovered subject values into executeSparql instead of inventing URIs.",
+      description: SEARCH_WORLD_TOOL_DESCRIPTION,
       inputSchema: z.object({
         query: z.string().describe(
           "Exact label, keyword, or natural-language phrase to search for.",
@@ -30,8 +33,7 @@ export function createEvalTools(client: Client) {
       },
     }),
     executeSparql: tool({
-      description:
-        "Execute a read-only SPARQL SELECT or ASK query against the RDF graph. Use this after searchWorld to traverse exact predicates and return grounded binding values. To inspect all properties of a known resource URI, use: SELECT ?p ?o WHERE { <uri> ?p ?o } — this pattern discovers what predicates and values a resource has before writing a targeted query. Final answers should preserve literal binding values exactly.",
+      description: EXECUTE_SPARQL_TOOL_DESCRIPTION,
       inputSchema: z.object({
         query: z.string().describe(
           "The raw read-only SPARQL query string. Only SELECT and ASK are allowed.",
