@@ -4,11 +4,10 @@ import type { Client } from "@worlds/client";
 import { ComunicaSparqlEngine } from "@worlds/client/adapters/comunica";
 import { createLibsqlClient } from "@worlds/client/adapters/libsql";
 
-/** GENID_BASE is the production-style skolem prefix for eval fixture entities. */
-export const GENID_BASE = "https://worlds.wazoo.dev/.well-known/genid/";
+import { GENID_BASE, WAZOO_VOCAB_NAMESPACE } from "./constants.ts";
 
-/** HIERARCHY_VOCAB_NAMESPACE is the shared vocabulary namespace for eval predicates. */
-export const HIERARCHY_VOCAB_NAMESPACE = "https://worlds.wazoo.dev/vocab/";
+export { GENID_BASE };
+export { WAZOO_VOCAB_NAMESPACE as HIERARCHY_VOCAB_NAMESPACE };
 
 export const HIERARCHY_CREATURE_SUBJECT_URI = `${GENID_BASE}c0a1b2c3d4e5f607`;
 export const HIERARCHY_DRAGON_SUBJECT_URI = `${GENID_BASE}d1b2c3d4e5f6072`;
@@ -30,7 +29,7 @@ export const HIERARCHY_TREASURE_DISCOVERY_QUERY = "golden hoard";
 export const UNKNOWN_HIERARCHY_LABEL = "x7Qp2ZrK";
 
 const SEEDED_HIERARCHY_DATA = `
-  @prefix vocab: <${HIERARCHY_VOCAB_NAMESPACE}> .
+  @prefix vocab: <${WAZOO_VOCAB_NAMESPACE}> .
   @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 
   <${HIERARCHY_CREATURE_SUBJECT_URI}> rdfs:label "${HIERARCHY_CREATURE_LABEL}" .

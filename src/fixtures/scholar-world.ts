@@ -4,11 +4,8 @@ import type { Client } from "@worlds/client";
 import { ComunicaSparqlEngine } from "@worlds/client/adapters/comunica";
 import { createLibsqlClient } from "@worlds/client/adapters/libsql";
 
-/** GENID_BASE is the production-style skolem prefix for eval fixture entities. */
-export const GENID_BASE = "https://worlds.wazoo.dev/.well-known/genid/";
-
-/** WAZOO_VOCAB_NAMESPACE is the shared vocabulary namespace for eval predicates. */
-export const WAZOO_VOCAB_NAMESPACE = "https://worlds.wazoo.dev/vocab/";
+import { GENID_BASE, WAZOO_VOCAB_NAMESPACE } from "./constants.ts";
+export { GENID_BASE, WAZOO_VOCAB_NAMESPACE };
 
 /** PAPER_SUBJECT_URI is the canonical subject IRI for the seeded paper entity. */
 export const PAPER_SUBJECT_URI = `${GENID_BASE}a1b2c3d4e5f6a7b8`;
