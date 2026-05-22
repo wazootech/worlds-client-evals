@@ -16,7 +16,6 @@ import {
 import {
   CREATURE_LABEL as HIERARCHY_CREATURE_LABEL,
   NEST_LOCATION_LITERAL as HIERARCHY_NEST_LOCATION_LITERAL,
-  WYVERN_LABEL as HIERARCHY_WYVERN_LABEL,
 } from "../fixtures/hierarchy-world.ts";
 
 /** normalizeOutputText canonicalizes free-form final text before tolerant comparison. */
@@ -486,7 +485,7 @@ export function applyAssertions(
       assertions.push(assertUsedRequiredTools(result, toolConfig));
       assertions.push(assertSearchBeforeSparql(result, toolConfig));
       assertions.push(assertSparqlHandoffValid(result, toolConfig));
-      assertions.push(assertStepCountBounded(result, 5));
+      assertions.push(assertStepCountBounded(result, 3));
       break;
     case "hierarchy-optional-pattern":
       assertions.push(assertUsedRequiredTools(result, toolConfig));

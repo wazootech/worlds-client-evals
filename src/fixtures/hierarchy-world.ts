@@ -17,6 +17,8 @@ export const NEST_SUBJECT_URI = `${GENID_BASE}f3d4e5f6074a1b2`;
 export const TREASURE_SUBJECT_URI = `${GENID_BASE}a4e5f6075a1b2c3`;
 
 export const CREATURE_LABEL = "mythical-beings";
+/** CREATURE_SEARCH_QUERY is the tokenized lookup phrase that finds CREATURE_LABEL. */
+export const CREATURE_SEARCH_QUERY = "mythical being";
 export const DRAGON_LABEL = "emberclaw";
 export const WYVERN_LABEL = "frostfang";
 export const NEST_LABEL = "dragon-roost";
