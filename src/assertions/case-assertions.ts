@@ -13,6 +13,11 @@ import {
   PAPER_AUTHOR_LITERAL as SCHOLAR_AUTHOR_LITERAL,
   PAPER_VENUE_LITERAL as SCHOLAR_VENUE_LITERAL,
 } from "../fixtures/scholar-world.ts";
+import {
+  CREATURE_LABEL as HIERARCHY_CREATURE_LABEL,
+  NEST_LOCATION_LITERAL as HIERARCHY_NEST_LOCATION_LITERAL,
+  WYVERN_LABEL as HIERARCHY_WYVERN_LABEL,
+} from "../fixtures/hierarchy-world.ts";
 
 /** normalizeOutputText canonicalizes free-form final text before tolerant comparison. */
 function normalizeOutputText(value: string): string {
@@ -431,6 +436,62 @@ export function applyAssertions(
     case "scholar-paper-properties":
       assertions.push(assertUsedRequiredTools(result, toolConfig));
       assertions.push(assertSearchBeforeSparql(result, toolConfig));
+      assertions.push(assertStepCountBounded(result, 5));
+      break;
+    case "hierarchy-type-discovery":
+      assertions.push(assertUsedRequiredTools(result, toolConfig));
+      assertions.push(assertSearchBeforeSparql(result, toolConfig));
+      assertions.push(assertSparqlHandoffValid(result, toolConfig));
+      assertions.push(assertStepCountBounded(result, 5));
+      assertions.push(
+        assertFinalAnswerContainsLiteral(
+          result,
+          HIERARCHY_CREATURE_LABEL,
+          "final-answer-superclass-correct",
+        ),
+      );
+      break;
+    case "hierarchy-multi-hop":
+      assertions.push(assertUsedRequiredTools(result, toolConfig));
+      assertions.push(assertSearchBeforeSparql(result, toolConfig));
+      assertions.push(assertSparqlHandoffValid(result, toolConfig));
+      assertions.push(assertStepCountBounded(result, 5));
+      assertions.push(
+        assertFinalAnswerContainsLiteral(
+          result,
+          HIERARCHY_NEST_LOCATION_LITERAL,
+          "final-answer-location-correct",
+        ),
+      );
+      assertions.push(
+        assertSparqlAnswerGrounded(
+          result,
+          toolConfig,
+          HIERARCHY_NEST_LOCATION_LITERAL,
+        ),
+      );
+      break;
+    case "hierarchy-no-join-invent":
+      assertions.push(
+        assertOutputExcludesLiteral(
+          result,
+          HIERARCHY_NEST_LOCATION_LITERAL,
+          "does-not-invent-location",
+        ),
+      );
+      assertions.push(assertSearchMissNoGroundedSuccess(result, toolConfig));
+      assertions.push(assertStepCountBounded(result, 5));
+      break;
+    case "hierarchy-sibling-class":
+      assertions.push(assertUsedRequiredTools(result, toolConfig));
+      assertions.push(assertSearchBeforeSparql(result, toolConfig));
+      assertions.push(assertSparqlHandoffValid(result, toolConfig));
+      assertions.push(assertStepCountBounded(result, 5));
+      break;
+    case "hierarchy-optional-pattern":
+      assertions.push(assertUsedRequiredTools(result, toolConfig));
+      assertions.push(assertSearchBeforeSparql(result, toolConfig));
+      assertions.push(assertSparqlHandoffValid(result, toolConfig));
       assertions.push(assertStepCountBounded(result, 5));
       break;
     default:
