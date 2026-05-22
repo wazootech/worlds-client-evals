@@ -28,3 +28,14 @@ Deno.test("compileEvalPrompt replaces semantic tool placeholders", () => {
     "Use searchWorld then executeSparql.",
   );
 });
+
+Deno.test("strict-eval config has system prompt additions", () => {
+  const toolConfig = resolveToolConfig("strict-eval");
+
+  assertEquals(toolConfig.id, "strict-eval");
+  assertEquals(typeof toolConfig.systemPromptAdditions, "string");
+  assertEquals(
+    toolConfig.systemPromptAdditions!.includes("Never exceed"),
+    true,
+  );
+});
