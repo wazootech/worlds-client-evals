@@ -26,11 +26,11 @@ on:
         required: false
         default: "0.8"
       tool_config:
-        description: Single tool config ID (e.g. baseline, with-resolve-resource)
+        description: Single tool config ID (e.g. baseline, strict-eval)
         required: false
         default: ""
       compare:
-        description: Comma-separated pair of config IDs to compare (e.g. baseline,with-resolve-resource)
+        description: Comma-separated pair of config IDs to compare (e.g. baseline,strict-eval)
         required: false
         default: ""
       model_id:

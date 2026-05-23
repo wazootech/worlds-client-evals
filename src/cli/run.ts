@@ -1,20 +1,21 @@
 import { parseArgs } from "@std/cli/parse-args";
-import { ensureDir } from "@std/fs";
-import { dirname, fromFileUrl, join } from "@std/path";
-import { applyAssertions } from "../assertions/index.ts";
 import { evalCases } from "../cases/index.ts";
-import { runEvalCase } from "../runner/run-eval-case.ts";
+import {
+  writeCompareResult,
+  writeStatsResult,
+  writeSuiteResult,
+} from "../results/result-store.ts";
+import {
+  buildCompareResult,
+  runEvalSuiteForToolConfig,
+} from "../runner/run-eval-suite.ts";
 import {
   defaultToolConfigId,
   resolveToolConfig,
   resolveToolConfigs,
 } from "../tool-configs/index.ts";
-import type { ToolConfig } from "../tool-configs/types.ts";
 import type {
-  EvalAssertionPassRate,
   EvalCaseDefinition,
-  EvalCasePassRate,
-  EvalCaseResult,
   EvalCompareResult,
   EvalStatsResult,
   EvalSuiteResult,
@@ -181,152 +182,6 @@ function printAvailableCases(cases: EvalCaseDefinition[]): void {
   }
 }
 
-/** buildResultFileName creates a stable JSON file name for result artifacts. */
-function buildResultFileName(baseName: string, suffix?: string): string {
-  if (!suffix) {
-    return `${baseName}.json`;
-  }
-
-  const safeSuffix = suffix.replaceAll(/[^a-zA-Z0-9_.-]/g, "-");
-  return `${baseName}-${safeSuffix}.json`;
-}
-
-/** writeResults persists the latest eval suite report to disk. */
-async function writeResults(
-  result: EvalSuiteResult,
-  suffix?: string,
-): Promise<string> {
-  const repositoryRoot = join(
-    dirname(fromFileUrl(import.meta.url)),
-    "..",
-    "..",
-  );
-  const resultsDirectory = join(repositoryRoot, "results");
-  const outputPath = join(
-    resultsDirectory,
-    buildResultFileName("latest", suffix),
-  );
-  await ensureDir(resultsDirectory);
-  await Deno.writeTextFile(outputPath, JSON.stringify(result, null, 2));
-  return outputPath;
-}
-
-/** writeStatsResults persists aggregated multi-trial pass rates to disk. */
-async function writeStatsResults(
-  result: EvalStatsResult,
-  suffix?: string,
-): Promise<string> {
-  const repositoryRoot = join(
-    dirname(fromFileUrl(import.meta.url)),
-    "..",
-    "..",
-  );
-  const resultsDirectory = join(repositoryRoot, "results");
-  const outputPath = join(
-    resultsDirectory,
-    buildResultFileName("stats-latest", suffix),
-  );
-  await ensureDir(resultsDirectory);
-  await Deno.writeTextFile(outputPath, JSON.stringify(result, null, 2));
-  return outputPath;
-}
-
-/** writeCompareResults persists side-by-side tool config comparison data. */
-async function writeCompareResults(result: EvalCompareResult): Promise<string> {
-  const repositoryRoot = join(
-    dirname(fromFileUrl(import.meta.url)),
-    "..",
-    "..",
-  );
-  const resultsDirectory = join(repositoryRoot, "results");
-  const outputPath = join(
-    resultsDirectory,
-    buildResultFileName("compare", result.toolConfigIds.join("-vs-")),
-  );
-  await ensureDir(resultsDirectory);
-  await Deno.writeTextFile(outputPath, JSON.stringify(result, null, 2));
-  return outputPath;
-}
-
-/** aggregateEvalStats computes per-case and per-assertion pass rates across trials. */
-function aggregateEvalStats(
-  selectedCases: EvalCaseDefinition[],
-  trialResults: EvalCaseResult[][],
-  provider: string,
-  model: string,
-  toolConfigId: string,
-  minPassRate?: number,
-): EvalStatsResult {
-  const casePassRates: EvalCasePassRate[] = selectedCases.map((testCase) => {
-    const resultsForCase = trialResults.map((trial) =>
-      trial.find((result) => result.id === testCase.id)
-    );
-
-    const assertionNames = [
-      ...new Set(
-        resultsForCase.flatMap((result) =>
-          result?.assertions.map((assertion) => assertion.name) ?? []
-        ),
-      ),
-    ];
-
-    const assertionPassRates: EvalAssertionPassRate[] = assertionNames.map(
-      (assertionName) => {
-        let passCount = 0;
-        let observedTrials = 0;
-
-        for (const result of resultsForCase) {
-          const assertion = result?.assertions.find((entry) =>
-            entry.name === assertionName
-          );
-          if (!assertion) {
-            continue;
-          }
-          observedTrials += 1;
-          if (assertion.pass) {
-            passCount += 1;
-          }
-        }
-
-        const trialCount = observedTrials;
-        return {
-          name: assertionName,
-          passCount,
-          trialCount,
-          passRate: trialCount === 0 ? 0 : passCount / trialCount,
-        };
-      },
-    );
-
-    const passCount = resultsForCase.filter((result) => result?.success).length;
-    const trialCount = resultsForCase.length;
-
-    return {
-      id: testCase.id,
-      description: testCase.description,
-      passCount,
-      trialCount,
-      passRate: trialCount === 0 ? 0 : passCount / trialCount,
-      assertionPassRates,
-    };
-  });
-
-  const success = minPassRate === undefined
-    ? casePassRates.every((caseRate) => caseRate.passRate === 1)
-    : casePassRates.every((caseRate) => caseRate.passRate >= minPassRate);
-
-  return {
-    providerId: provider,
-    modelId: model,
-    toolConfigId,
-    timestamp: new Date().toISOString(),
-    trialCount: trialResults.length,
-    minPassRate,
-    success,
-    casePassRates,
-  };
-}
-
 /** printStatsSummary renders aggregated pass rates for multi-trial runs. */
 function printStatsSummary(statsResult: EvalStatsResult): void {
   if (statsResult.toolConfigId) {
@@ -388,136 +243,14 @@ function printSummary(result: EvalSuiteResult): void {
   }
 }
 
-/** isFatalApiError detects unrecoverable API failures that will affect all subsequent calls. */
-function isFatalApiError(errorMessage: string): boolean {
-  const fatalPatterns = [
-    "prepayment credits are depleted",
-    "quota exceeded",
-    "rate limit exceeded",
-    "api key not valid",
-    "api key invalid",
-    "authentication error",
-    "permission denied",
-    "billing account",
-    "payment required",
-  ];
-  const lowerMessage = errorMessage.toLowerCase();
-  return fatalPatterns.some((pattern) => lowerMessage.includes(pattern));
-}
-
-/** EvalToolConfigRunResult stores one tool config's suite and stats outputs. */
-interface EvalToolConfigRunResult {
-  suiteResult: EvalSuiteResult;
-  statsResult?: EvalStatsResult;
-  fatalError?: string;
-}
-
-/** runEvalSuiteForToolConfig runs selected cases against one named tool set. */
-async function runEvalSuiteForToolConfig(
-  selectedEvalCases: EvalCaseDefinition[],
-  cliOptions: EvalCliOptions,
-  toolConfig: ToolConfig,
-): Promise<EvalToolConfigRunResult> {
-  const trialSuiteResults: EvalSuiteResult[] = [];
-  let fatalError: string | undefined;
-
-  for (
-    let trialIndex = 0;
-    trialIndex < cliOptions.trialCount;
-    trialIndex += 1
-  ) {
-    if (fatalError) {
-      break;
-    }
-
-    if (cliOptions.trialCount > 1) {
-      console.log(
-        `[${toolConfig.id}] Trial ${trialIndex + 1}/${cliOptions.trialCount}`,
-      );
-      console.log("");
-    }
-
-    const results = [];
-    for (const testCase of selectedEvalCases) {
-      if (fatalError) {
-        break;
-      }
-
-      const rawResult = await runEvalCase(testCase, {
-        providerId,
-        modelId,
-        toolConfig,
-      });
-
-      if (rawResult.error && isFatalApiError(rawResult.error)) {
-        fatalError = rawResult.error;
-        console.log(
-          `\nFatal API error detected — aborting run: ${rawResult.error}`,
-        );
-        break;
-      }
-
-      results.push(
-        applyAssertions(rawResult, testCase.assertions, toolConfig),
-      );
-    }
-
-    trialSuiteResults.push({
-      providerId,
-      modelId,
-      toolConfigId: toolConfig.id,
-      timestamp: new Date().toISOString(),
-      success: results.every((result) => result.success),
-      results,
-    });
-  }
-
-  const suiteResult = trialSuiteResults[trialSuiteResults.length - 1];
-  const shouldAggregateStats = cliOptions.trialCount > 1 ||
-    cliOptions.compareToolConfigIds !== undefined;
-  const statsResult = shouldAggregateStats
-    ? aggregateEvalStats(
-      selectedEvalCases,
-      trialSuiteResults.map((trial) => trial.results),
-      providerId,
-      modelId,
-      toolConfig.id,
-      cliOptions.minPassRate,
-    )
-    : undefined;
-
-  return { suiteResult, statsResult, fatalError };
-}
-
-/** buildCompareResult creates side-by-side stats for multiple tool configs. */
-function buildCompareResult(
-  selectedEvalCases: EvalCaseDefinition[],
-  statsResults: EvalStatsResult[],
-  cliOptions: EvalCliOptions,
-): EvalCompareResult {
+/** buildSuiteRunOptions compiles CLI options into suite runner configuration. */
+function buildSuiteRunOptions(cliOptions: EvalCliOptions) {
   return {
     providerId,
     modelId,
-    timestamp: new Date().toISOString(),
     trialCount: cliOptions.trialCount,
     minPassRate: cliOptions.minPassRate,
-    toolConfigIds: statsResults.map((statsResult) =>
-      statsResult.toolConfigId ?? defaultToolConfigId
-    ),
-    statsResults,
-    caseComparisons: selectedEvalCases.map((testCase) => ({
-      id: testCase.id,
-      description: testCase.description,
-      passRatesByToolConfig: Object.fromEntries(
-        statsResults.flatMap((statsResult) => {
-          const casePassRate = statsResult.casePassRates.find((entry) =>
-            entry.id === testCase.id
-          );
-          const toolConfigId = statsResult.toolConfigId ?? defaultToolConfigId;
-          return casePassRate ? [[toolConfigId, casePassRate]] : [];
-        }),
-      ),
-    })),
+    compareMode: cliOptions.compareToolConfigIds !== undefined,
   };
 }
 
@@ -568,8 +301,8 @@ if (import.meta.main) {
     for (const toolConfig of toolConfigs) {
       const runResult = await runEvalSuiteForToolConfig(
         selectedEvalCases,
-        cliOptions,
         toolConfig,
+        buildSuiteRunOptions(cliOptions),
       );
       if (runResult.fatalError) {
         console.log(
@@ -579,7 +312,7 @@ if (import.meta.main) {
         Deno.exit();
       }
 
-      const latestOutputPath = await writeResults(
+      const latestOutputPath = await writeSuiteResult(
         runResult.suiteResult,
         toolConfig.id,
       );
@@ -587,7 +320,7 @@ if (import.meta.main) {
 
       if (runResult.statsResult) {
         statsResults.push(runResult.statsResult);
-        const statsOutputPath = await writeStatsResults(
+        const statsOutputPath = await writeStatsResult(
           runResult.statsResult,
           toolConfig.id,
         );
@@ -605,10 +338,10 @@ if (import.meta.main) {
     const compareResult = buildCompareResult(
       selectedEvalCases,
       statsResults,
-      cliOptions,
+      buildSuiteRunOptions(cliOptions),
     );
     printCompareSummary(compareResult);
-    const compareOutputPath = await writeCompareResults(compareResult);
+    const compareOutputPath = await writeCompareResult(compareResult);
     console.log(`Wrote comparison results to ${compareOutputPath}`);
 
     if (compareFailed) {
@@ -620,8 +353,8 @@ if (import.meta.main) {
   const toolConfig = resolveToolConfig(cliOptions.toolConfigId);
   const runResult = await runEvalSuiteForToolConfig(
     selectedEvalCases,
-    cliOptions,
     toolConfig,
+    buildSuiteRunOptions(cliOptions),
   );
 
   if (runResult.fatalError) {
@@ -634,13 +367,13 @@ if (import.meta.main) {
 
   if (runResult.statsResult) {
     printStatsSummary(runResult.statsResult);
-    const statsOutputPath = await writeStatsResults(runResult.statsResult);
+    const statsOutputPath = await writeStatsResult(runResult.statsResult);
     console.log(`Wrote statistical results to ${statsOutputPath}`);
   } else {
     printSummary(runResult.suiteResult);
   }
 
-  const outputPath = await writeResults(runResult.suiteResult);
+  const outputPath = await writeSuiteResult(runResult.suiteResult);
   console.log(`Wrote results to ${outputPath}`);
 
   if (runResult.statsResult) {

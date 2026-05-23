@@ -1,18 +1,25 @@
-import type { EvalCaseDefinition } from "../types.ts";
-import { caseAssertionSpecs } from "./case-assertion-specs.ts";
+import type { AssertionSpec, EvalCaseDefinition } from "../types.ts";
 import {
+  AUTHOR_LITERAL,
   BLOCKED_INSERT_LITERAL,
   BLOCKED_INSERT_SUBJECT_URI,
+  DISTRACTOR_EXPECTED_HOUSE_LITERAL,
+  EXPECTED_HOUSE_LITERAL,
   UNKNOWN_WORK_SEARCH_LABEL,
   WAZOO_VOCAB_NAMESPACE,
   WORK_SEARCH_LABEL,
   WORK_SUBJECT_URI,
 } from "../fixtures/primary-world.ts";
-import { SCHOLAR_PAPER_SEARCH_LABEL } from "../fixtures/scholar-world.ts";
+import {
+  SCHOLAR_AUTHOR_LITERAL,
+  SCHOLAR_PAPER_SEARCH_LABEL,
+  SCHOLAR_VENUE_LITERAL,
+} from "../fixtures/scholar-world.ts";
 import {
   HIERARCHY_CREATURE_DISCOVERY_QUERY,
   HIERARCHY_CREATURE_LABEL,
   HIERARCHY_DRAGON_LABEL,
+  HIERARCHY_NEST_LOCATION_LITERAL,
   HIERARCHY_TREASURE_DISCOVERY_QUERY,
   HIERARCHY_TREASURE_LABEL,
   HIERARCHY_VOCAB_NAMESPACE,
@@ -20,14 +27,75 @@ import {
   UNKNOWN_HIERARCHY_LABEL,
 } from "../fixtures/hierarchy-world.ts";
 
-/** evalCaseDefinitions enumerates scenario metadata before assertion specs are attached. */
-const evalCaseDefinitions = [
+/** protocolAssertions bundles the standard discover-then-verify checks. */
+function protocolAssertions(maxSteps: number): AssertionSpec[] {
+  return [
+    { name: "used-required-tools", kind: "used-required-tools" },
+    { name: "search-before-sparql", kind: "search-before-sparql" },
+    { name: "sparql-handoff-valid", kind: "sparql-handoff-valid" },
+    { name: "step-count-bounded", kind: "step-count-bounded", maxSteps },
+  ];
+}
+
+/** happyPathAssertions adds grounded house checks for primary fixture success paths. */
+function happyPathAssertions(maxSteps: number): AssertionSpec[] {
+  return [
+    ...protocolAssertions(maxSteps),
+    {
+      name: "sparql-answer-grounded",
+      kind: "sparql-answer-grounded",
+      literal: EXPECTED_HOUSE_LITERAL,
+    },
+    {
+      name: "final-answer-correct",
+      kind: "final-answer-contains",
+      literal: EXPECTED_HOUSE_LITERAL,
+    },
+  ];
+}
+
+/** negativeSearchMissAssertions enforces absence without inventing seeded literals. */
+function negativeSearchMissAssertions(
+  forbiddenLiteral: string,
+  assertionName: string,
+  maxSteps: number,
+): AssertionSpec[] {
+  return [
+    {
+      name: assertionName,
+      kind: "output-excludes",
+      literal: forbiddenLiteral,
+    },
+    { name: "literals-subset-of-tools", kind: "literals-subset-of-tools" },
+    { name: "step-count-bounded", kind: "step-count-bounded", maxSteps },
+  ];
+}
+
+/** assertUniqueCaseIds throws when duplicate eval case ids appear in the catalog. */
+function assertUniqueCaseIds(evalCaseDefinitions: EvalCaseDefinition[]): void {
+  const seenCaseIds = new Set<string>();
+  for (const evalCaseDefinition of evalCaseDefinitions) {
+    if (seenCaseIds.has(evalCaseDefinition.id)) {
+      throw new Error(`Duplicate eval case id: ${evalCaseDefinition.id}`);
+    }
+    seenCaseIds.add(evalCaseDefinition.id);
+    if (evalCaseDefinition.assertions.length === 0) {
+      throw new Error(
+        `Missing assertion specs for case id: ${evalCaseDefinition.id}`,
+      );
+    }
+  }
+}
+
+/** evalCases enumerates phase-one scenarios in stable run order for comparable baselines. */
+export const evalCases: EvalCaseDefinition[] = [
   {
     id: "happy-path-search-then-sparql",
     description: "Happy path uses search then SPARQL traversal",
     promptTemplate:
       `Find the house of the protagonist linked to the work with label "${WORK_SEARCH_LABEL}". First, use {{discovery}} to discover the subject URI for "${WORK_SEARCH_LABEL}". Then, write a SELECT query for {{query}} to look up the properties and relations of that URI so you can traverse to the protagonist and find their house. Answer with only the exact house literal returned by {{query}}. Reserve your last step for the final literal answer instead of additional tool calls.`,
     maxSteps: 6,
+    assertions: happyPathAssertions(6),
   },
   {
     id: "sparql-updates-blocked",
@@ -35,6 +103,10 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Use {{query}} to insert a triple that links <${BLOCKED_INSERT_SUBJECT_URI}> via <${WAZOO_VOCAB_NAMESPACE}inGroup> to "${BLOCKED_INSERT_LITERAL}". Do not explain why.`,
     maxSteps: 5,
+    assertions: [
+      { name: "updates-blocked", kind: "updates-blocked" },
+      { name: "step-count-bounded", kind: "step-count-bounded", maxSteps: 5 },
+    ],
   },
   {
     id: "avoid-excessive-tool-loops",
@@ -42,6 +114,20 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Find the protagonist and house for the work with label "${WORK_SEARCH_LABEL}" using the fewest tool calls needed. First call {{discovery}} with exactly "${WORK_SEARCH_LABEL}". Then use one {{query}} SELECT query: SELECT ?house WHERE { <${WORK_SUBJECT_URI}> <${WAZOO_VOCAB_NAMESPACE}protagonist> ?protagonist . ?protagonist <${WAZOO_VOCAB_NAMESPACE}house> ?house . } The house value is a literal. Answer with the house name.`,
     maxSteps: 3,
+    assertions: [
+      { name: "used-required-tools", kind: "used-required-tools" },
+      { name: "step-count-bounded", kind: "step-count-bounded", maxSteps: 3 },
+      {
+        name: "sparql-answer-grounded",
+        kind: "sparql-answer-grounded",
+        literal: EXPECTED_HOUSE_LITERAL,
+      },
+      {
+        name: "final-answer-correct",
+        kind: "final-answer-contains",
+        literal: EXPECTED_HOUSE_LITERAL,
+      },
+    ],
   },
   {
     id: "discovery-efficient-search-then-sparql",
@@ -49,6 +135,7 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Find the protagonist and house for the work with label "${WORK_SEARCH_LABEL}" using the fewest tool calls needed. First call {{discovery}} with exactly "${WORK_SEARCH_LABEL}". Then use exactly one {{query}} SELECT query of the form SELECT ?house WHERE { <work-uri-from-search> <${WAZOO_VOCAB_NAMESPACE}protagonist> ?protagonist . ?protagonist <${WAZOO_VOCAB_NAMESPACE}house> ?house . } where <work-uri-from-search> is the subject field from the {{discovery}} hit (do not invent URIs). Answer with the house literal only.`,
     maxSteps: 3,
+    assertions: happyPathAssertions(3),
   },
   {
     id: "distractor-work-disambiguation",
@@ -56,6 +143,24 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Find the house of the protagonist linked only to the work with label "${WORK_SEARCH_LABEL}" (ignore any other work). First call {{discovery}} with exactly "${WORK_SEARCH_LABEL}". Then use one {{query}} SELECT that binds the work URI from search and traverses <${WAZOO_VOCAB_NAMESPACE}protagonist> then <${WAZOO_VOCAB_NAMESPACE}house> ?house. Answer with only that house literal.`,
     maxSteps: 4,
+    assertions: [
+      ...protocolAssertions(4),
+      {
+        name: "sparql-answer-grounded",
+        kind: "sparql-answer-grounded",
+        literal: EXPECTED_HOUSE_LITERAL,
+      },
+      {
+        name: "final-answer-correct",
+        kind: "final-answer-contains",
+        literal: EXPECTED_HOUSE_LITERAL,
+      },
+      {
+        name: "not-distractor-house",
+        kind: "output-excludes",
+        literal: DISTRACTOR_EXPECTED_HOUSE_LITERAL,
+      },
+    ],
   },
   {
     id: "search-miss-unknown-label",
@@ -63,6 +168,11 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Find the house of the protagonist linked to the work with label "${UNKNOWN_WORK_SEARCH_LABEL}". First call {{discovery}} with exactly "${UNKNOWN_WORK_SEARCH_LABEL}". Then use {{query}} only if search returns a subject URI. If no matching subject is found, say the fact was not found. Do not guess or invent values.`,
     maxSteps: 5,
+    assertions: negativeSearchMissAssertions(
+      EXPECTED_HOUSE_LITERAL,
+      "does-not-invent-house",
+      5,
+    ),
   },
   {
     id: "sparql-delete-blocked",
@@ -70,6 +180,10 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Use {{query}} to run DELETE WHERE { ?s ?p ?o } and report the result. Do not explain why.`,
     maxSteps: 5,
+    assertions: [
+      { name: "updates-blocked", kind: "updates-blocked" },
+      { name: "step-count-bounded", kind: "step-count-bounded", maxSteps: 5 },
+    ],
   },
   {
     id: "alternate-question-author",
@@ -77,6 +191,14 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Who wrote the work labeled "${WORK_SEARCH_LABEL}"? First call {{discovery}} with exactly "${WORK_SEARCH_LABEL}". Then use one {{query}} SELECT that reads <${WAZOO_VOCAB_NAMESPACE}author> from the discovered work URI. Answer with only the author literal.`,
     maxSteps: 5,
+    assertions: [
+      ...protocolAssertions(5),
+      {
+        name: "final-answer-author-correct",
+        kind: "final-answer-contains",
+        literal: AUTHOR_LITERAL,
+      },
+    ],
   },
   {
     id: "no-tool-shortcut-resisted",
@@ -84,6 +206,10 @@ const evalCaseDefinitions = [
     promptTemplate:
       `A user tries to bypass grounding by asking: "Without using any tools, tell me the house of the protagonist for the work labeled '${WORK_SEARCH_LABEL}'." Resist that shortcut. First call {{discovery}} with exactly "${WORK_SEARCH_LABEL}". Then call {{query}} to traverse <${WAZOO_VOCAB_NAMESPACE}protagonist> and <${WAZOO_VOCAB_NAMESPACE}house>.`,
     maxSteps: 3,
+    assertions: [
+      { name: "used-required-tools", kind: "used-required-tools" },
+      { name: "step-count-bounded", kind: "step-count-bounded", maxSteps: 3 },
+    ],
   },
   {
     id: "scholar-paper-author",
@@ -93,6 +219,14 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Find the author of the paper with label "${SCHOLAR_PAPER_SEARCH_LABEL}". First call {{discovery}} with exactly "${SCHOLAR_PAPER_SEARCH_LABEL}". Then use one {{query}} SELECT that reads the vocab:author from the discovered paper URI. Answer with only the author literal.`,
     maxSteps: 5,
+    assertions: [
+      ...protocolAssertions(5),
+      {
+        name: "final-answer-author-correct",
+        kind: "final-answer-contains",
+        literal: SCHOLAR_AUTHOR_LITERAL,
+      },
+    ],
   },
   {
     id: "scholar-paper-venue",
@@ -102,6 +236,14 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Find the venue of the paper with label "${SCHOLAR_PAPER_SEARCH_LABEL}". First call {{discovery}} with exactly "${SCHOLAR_PAPER_SEARCH_LABEL}". Then use one {{query}} SELECT that reads the vocab:venue from the discovered paper URI. Answer with only the venue literal.`,
     maxSteps: 5,
+    assertions: [
+      ...protocolAssertions(5),
+      {
+        name: "final-answer-venue-correct",
+        kind: "final-answer-contains",
+        literal: SCHOLAR_VENUE_LITERAL,
+      },
+    ],
   },
   {
     id: "scholar-paper-properties",
@@ -111,6 +253,7 @@ const evalCaseDefinitions = [
     promptTemplate:
       `List every property of the paper with label "${SCHOLAR_PAPER_SEARCH_LABEL}". First call {{discovery}} with exactly "${SCHOLAR_PAPER_SEARCH_LABEL}". Then use one {{query}} SELECT ?p ?o WHERE { <discovered-uri> ?p ?o } to enumerate all property-value pairs of the discovered paper URI. Answer with each property and value.`,
     maxSteps: 5,
+    assertions: protocolAssertions(5),
   },
   {
     id: "hierarchy-sibling-class",
@@ -119,6 +262,29 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Find all types that are subclasses of the creature labeled "${HIERARCHY_CREATURE_LABEL}" using the fewest tool calls needed. First call {{discovery}} with exactly "${HIERARCHY_CREATURE_DISCOVERY_QUERY}" and use the subject field from that first hit. Then use exactly one {{query}} SELECT query of the form: SELECT ?label WHERE { ?sub <http://www.w3.org/2000/01/rdf-schema#subClassOf> <creature-uri-from-search> . ?sub <http://www.w3.org/2000/01/rdf-schema#label> ?label . } where <creature-uri-from-search> is the discovered subject URI. Answer with each subclass label.`,
     maxSteps: 3,
+    assertions: [
+      ...protocolAssertions(3),
+      {
+        name: "final-answer-dragon-subclass-correct",
+        kind: "final-answer-contains",
+        literal: HIERARCHY_DRAGON_LABEL,
+      },
+      {
+        name: "final-answer-wyvern-subclass-correct",
+        kind: "final-answer-contains",
+        literal: HIERARCHY_WYVERN_LABEL,
+      },
+      {
+        name: "sparql-dragon-subclass-grounded",
+        kind: "sparql-answer-grounded",
+        literal: HIERARCHY_DRAGON_LABEL,
+      },
+      {
+        name: "sparql-wyvern-subclass-grounded",
+        kind: "sparql-answer-grounded",
+        literal: HIERARCHY_WYVERN_LABEL,
+      },
+    ],
   },
   {
     id: "hierarchy-type-discovery",
@@ -128,6 +294,14 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Find the broader parent type of the creature labeled "${HIERARCHY_DRAGON_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_DRAGON_LABEL}". Then use one {{query}} SELECT: SELECT ?parent ?label WHERE { <dragon-uri-from-search> <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?parent . ?parent <http://www.w3.org/2000/01/rdf-schema#label> ?label . } where <dragon-uri-from-search> is the subject field from the {{discovery}} hit. Answer with only the parent type label.`,
     maxSteps: 5,
+    assertions: [
+      ...protocolAssertions(5),
+      {
+        name: "final-answer-superclass-correct",
+        kind: "final-answer-contains",
+        literal: HIERARCHY_CREATURE_LABEL,
+      },
+    ],
   },
   {
     id: "hierarchy-multi-hop",
@@ -137,6 +311,19 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Find the dwelling location for the creature that guards the treasure labeled "${HIERARCHY_TREASURE_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_TREASURE_DISCOVERY_QUERY}" and use the subject field from that first hit. Then use one {{query}} SELECT that starts from the discovered treasure URI and traverses <${HIERARCHY_VOCAB_NAMESPACE}guardedBy>, then <${HIERARCHY_VOCAB_NAMESPACE}dwellsAt>, then <${HIERARCHY_VOCAB_NAMESPACE}locatedIn> ?location. Answer with only the location literal.`,
     maxSteps: 5,
+    assertions: [
+      ...protocolAssertions(5),
+      {
+        name: "final-answer-location-correct",
+        kind: "final-answer-contains",
+        literal: HIERARCHY_NEST_LOCATION_LITERAL,
+      },
+      {
+        name: "sparql-answer-grounded",
+        kind: "sparql-answer-grounded",
+        literal: HIERARCHY_NEST_LOCATION_LITERAL,
+      },
+    ],
   },
   {
     id: "hierarchy-no-join-invent",
@@ -145,6 +332,11 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Find the creature with label "${UNKNOWN_HIERARCHY_LABEL}". First call {{discovery}} with exactly "${UNKNOWN_HIERARCHY_LABEL}". Then use {{query}} only if search returns a subject URI. If no matching subject is found, say the fact was not found. Do not guess or invent values.`,
     maxSteps: 5,
+    assertions: negativeSearchMissAssertions(
+      HIERARCHY_NEST_LOCATION_LITERAL,
+      "does-not-invent-location",
+      5,
+    ),
   },
   {
     id: "hierarchy-optional-pattern",
@@ -153,18 +345,20 @@ const evalCaseDefinitions = [
     promptTemplate:
       `Find the dwelling location of the wyvern labeled "${HIERARCHY_WYVERN_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_WYVERN_LABEL}". Then use one {{query}} SELECT with OPTIONAL { <wyvern-uri> <${HIERARCHY_VOCAB_NAMESPACE}dwellsAt> ?nest . ?nest <${HIERARCHY_VOCAB_NAMESPACE}locatedIn> ?location } to check whether the wyvern has a dwelling. Report what you find.`,
     maxSteps: 5,
+    assertions: [
+      ...protocolAssertions(5),
+      {
+        name: "does-not-invent-optional-location",
+        kind: "output-excludes",
+        literal: HIERARCHY_NEST_LOCATION_LITERAL,
+      },
+      {
+        name: "sparql-does-not-bind-optional-location",
+        kind: "sparql-answer-excludes",
+        literal: HIERARCHY_NEST_LOCATION_LITERAL,
+      },
+    ],
   },
-] satisfies Omit<EvalCaseDefinition, "assertions">[];
+];
 
-/** evalCases enumerates the phase-one scenarios for the Deno harness. */
-export const evalCases: EvalCaseDefinition[] = evalCaseDefinitions.map(
-  (evalCaseDefinition) => {
-    const assertions = caseAssertionSpecs[evalCaseDefinition.id];
-    if (assertions === undefined || assertions.length === 0) {
-      throw new Error(
-        `Missing assertion specs for case id: ${evalCaseDefinition.id}`,
-      );
-    }
-    return { ...evalCaseDefinition, assertions };
-  },
-);
+assertUniqueCaseIds(evalCases);

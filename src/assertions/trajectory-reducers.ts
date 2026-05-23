@@ -102,9 +102,10 @@ export function extractSparqlBindingLiterals(sparqlResult: unknown): string[] {
 /** extractSparqlRejectedQuery extracts the query that triggered a SPARQL guard rejection. */
 export function extractSparqlRejectedQuery(
   trajectory: EvalToolRecord[],
+  queryName: string,
 ): string | undefined {
   const blockedStep = trajectory.find((record) =>
-    record.toolName === "executeSparql" &&
+    record.toolName === queryName &&
     typeof record.result === "object" && record.result !== null &&
     "success" in record.result &&
     (record.result as { success: boolean }).success === false &&

@@ -1,4 +1,6 @@
 import { join } from "@std/path";
+import { buildTable, formatPercent } from "../src/reporting/markdown-table.ts";
+import { synthesizeStatsFromSuite } from "../src/runner/run-eval-suite.ts";
 import type {
   EvalAssertionPassRate,
   EvalCasePassRate,
@@ -57,20 +59,6 @@ function parseOptionalPassRate(
   return parsedValue;
 }
 
-/** formatPercent renders a pass rate as a one-decimal percentage. */
-function formatPercent(passRate: number): string {
-  return `${(passRate * 100).toFixed(1)}%`;
-}
-
-/** escapeTableCell protects Markdown tables from pipes and line breaks. */
-function escapeTableCell(value: unknown): string {
-  return String(value ?? "")
-    .replaceAll("|", "\\|")
-    .replaceAll("\r\n", "<br>")
-    .replaceAll("\n", "<br>")
-    .trim();
-}
-
 /** truncateCell keeps verbose model output readable inside the discussion. */
 function truncateCell(value: unknown): string {
   const normalizedValue = String(value ?? "").trim();
@@ -79,46 +67,6 @@ function truncateCell(value: unknown): string {
   }
 
   return `${normalizedValue.slice(0, DEFAULT_EXCERPT_LENGTH - 3)}...`;
-}
-
-/** buildTable renders a GitHub-flavored Markdown table. */
-function buildTable(headers: string[], rows: string[][]): string {
-  const headerRow = `| ${headers.map(escapeTableCell).join(" | ")} |`;
-  const separatorRow = `| ${headers.map(() => ":---").join(" | ")} |`;
-  const bodyRows = rows.map((row) =>
-    `| ${row.map((cell) => escapeTableCell(cell)).join(" | ")} |`
-  );
-
-  return [headerRow, separatorRow, ...bodyRows].join("\n");
-}
-
-/** synthesizeStatsResult creates one-trial pass rates from a suite result. */
-function synthesizeStatsResult(
-  suiteResult: EvalSuiteResult,
-  minPassRate: number | undefined,
-): EvalStatsResult {
-  return {
-    providerId: suiteResult.providerId,
-    modelId: suiteResult.modelId,
-    toolConfigId: suiteResult.toolConfigId,
-    timestamp: suiteResult.timestamp,
-    trialCount: 1,
-    minPassRate,
-    success: suiteResult.success,
-    casePassRates: suiteResult.results.map((caseResult) => ({
-      id: caseResult.id,
-      description: caseResult.description,
-      passCount: caseResult.success ? 1 : 0,
-      trialCount: 1,
-      passRate: caseResult.success ? 1 : 0,
-      assertionPassRates: caseResult.assertions.map((assertion) => ({
-        name: assertion.name,
-        passCount: assertion.pass ? 1 : 0,
-        trialCount: 1,
-        passRate: assertion.pass ? 1 : 0,
-      })),
-    })),
-  };
 }
 
 /** caseRiskRank returns a sort bucket where lower values are riskier. */
@@ -318,7 +266,7 @@ export function renderEvalReport(input: EvalReportInput): string {
   const environmentPassRate = parseOptionalPassRate(environment.minPassRate);
   const statsResult = input.statsResult ??
     (input.suiteResult
-      ? synthesizeStatsResult(input.suiteResult, environmentPassRate)
+      ? synthesizeStatsFromSuite(input.suiteResult, environmentPassRate)
       : undefined);
   const requiredPassRate = statsResult?.minPassRate ?? environmentPassRate ?? 1;
   const status = resolveStatus(statsResult, input.suiteResult, environment);
