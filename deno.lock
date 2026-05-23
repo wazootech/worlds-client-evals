@@ -7,7 +7,7 @@
     "jsr:@std/fs@^1.0.23": "1.0.23",
     "jsr:@std/internal@^1.0.12": "1.0.13",
     "jsr:@std/path@^1.1.4": "1.1.4",
-    "jsr:@worlds/client@^0.0.5": "0.0.5",
+    "jsr:@worlds/client@^0.0.13": "0.0.13",
     "npm:@ai-sdk/google@^3.0.78": "3.0.78_zod@4.4.3",
     "npm:@comunica/query-sparql-rdfjs-lite@^5.2.2": "5.2.2",
     "npm:@langchain/textsplitters@^1.0.1": "1.0.1_@langchain+core@1.1.47",
@@ -49,8 +49,8 @@
         "jsr:@std/internal"
       ]
     },
-    "@worlds/client@0.0.5": {
-      "integrity": "3dfe5edb56c2f5e50139b3764d71cbc61ed15ab9a0d21dc4f26cc0a5c83b3853",
+    "@worlds/client@0.0.13": {
+      "integrity": "6352bb14b4caa0d17abd568f9cda7d105fe328ef6fd9b2ac16a5b9a1a9624257",
       "dependencies": [
         "jsr:@std/encoding",
         "npm:@langchain/textsplitters",
@@ -3744,7 +3744,7 @@
       "jsr:@std/cli@^1.0.22",
       "jsr:@std/fs@^1.0.23",
       "jsr:@std/path@^1.1.4",
-      "jsr:@worlds/client@^0.0.5",
+      "jsr:@worlds/client@^0.0.13",
       "npm:@ai-sdk/google@^3.0.78",
       "npm:@comunica/query-sparql-rdfjs-lite@^5.2.2",
       "npm:@libsql/client@~0.17.3",
