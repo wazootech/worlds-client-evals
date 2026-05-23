@@ -31,6 +31,32 @@ export interface EvalAssertionResult {
   message?: string;
 }
 
+/** AssertionSpecKind identifies a composable assertion implementation in the registry. */
+export type AssertionSpecKind =
+  | "used-required-tools"
+  | "search-before-sparql"
+  | "sparql-handoff-valid"
+  | "step-count-bounded"
+  | "updates-blocked"
+  | "final-answer-contains"
+  | "output-excludes"
+  | "sparql-answer-grounded"
+  | "sparql-answer-excludes"
+  | "literals-subset-of-tools";
+
+/** AssertionSpec names one composable invariant and its parameters for a case. */
+export type AssertionSpec =
+  | { name: string; kind: "used-required-tools" }
+  | { name: string; kind: "search-before-sparql" }
+  | { name: string; kind: "sparql-handoff-valid" }
+  | { name: string; kind: "step-count-bounded"; maxSteps: number }
+  | { name: string; kind: "updates-blocked" }
+  | { name: string; kind: "final-answer-contains"; literal: string }
+  | { name: string; kind: "output-excludes"; literal: string }
+  | { name: string; kind: "sparql-answer-grounded"; literal: string }
+  | { name: string; kind: "sparql-answer-excludes"; literal: string }
+  | { name: string; kind: "literals-subset-of-tools" };
+
 /** EvalCaseDefinition describes one agent evaluation scenario. */
 export interface EvalCaseDefinition {
   id: string;
@@ -39,6 +65,7 @@ export interface EvalCaseDefinition {
   promptTemplate?: string;
   maxSteps?: number;
   fixtureId?: string;
+  assertions: AssertionSpec[];
 }
 
 /** EvalCaseResult stores the output and assertion results for one scenario. */
