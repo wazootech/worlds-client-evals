@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { TRACKED_FIXTURE_LITERALS } from "../../src/fixtures/tracked-fixture-literals.ts";
+import { TRACKED_FIXTURE_LITERALS } from "@/fixtures/tracked-fixture-literals.ts";
 import {
   AUTHOR_LITERAL,
   BLOCKED_INSERT_LITERAL,
@@ -11,7 +11,7 @@ import {
   PROTAGONIST_LABEL,
   UNKNOWN_WORK_SEARCH_LABEL,
   WORK_SEARCH_LABEL,
-} from "../../src/fixtures/primary-world.ts";
+} from "@/fixtures/primary-world.ts";
 import {
   HIERARCHY_CREATURE_DISCOVERY_QUERY,
   HIERARCHY_CREATURE_LABEL,
@@ -22,13 +22,13 @@ import {
   HIERARCHY_TREASURE_LABEL,
   HIERARCHY_WYVERN_LABEL,
   UNKNOWN_HIERARCHY_LABEL,
-} from "../../src/fixtures/hierarchy-world.ts";
+} from "@/fixtures/hierarchy-world.ts";
 import {
   PAPER_YEAR_LITERAL,
   SCHOLAR_AUTHOR_LITERAL,
   SCHOLAR_PAPER_SEARCH_LABEL,
   SCHOLAR_VENUE_LITERAL,
-} from "../../src/fixtures/scholar-world.ts";
+} from "@/fixtures/scholar-world.ts";
 
 /** FIXTURE_ANSWER_STRINGS lists every fixture string literals-subset-of-tools must track. */
 const FIXTURE_ANSWER_STRINGS = [

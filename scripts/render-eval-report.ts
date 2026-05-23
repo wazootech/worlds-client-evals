@@ -1,13 +1,13 @@
 import { join } from "@std/path";
-import { buildTable, formatPercent } from "../src/reporting/markdown-table.ts";
-import { synthesizeStatsFromSuite } from "../src/runner/run-eval-suite.ts";
+import { buildTable, formatPercent } from "@/reporting/markdown-table.ts";
+import { synthesizeStatsFromSuite } from "@/runner/run-eval-suite.ts";
 import type {
   EvalAssertionPassRate,
   EvalCasePassRate,
   EvalCaseResult,
   EvalStatsResult,
   EvalSuiteResult,
-} from "../src/types.ts";
+} from "@/types.ts";
 
 const DEFAULT_RESULTS_DIRECTORY = "results";
 const DEFAULT_EXCERPT_LENGTH = 220;

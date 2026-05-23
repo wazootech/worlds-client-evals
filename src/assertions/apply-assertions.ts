@@ -1,9 +1,9 @@
-import type { AssertionSpec, EvalCaseResult } from "../types.ts";
+import type { AssertionSpec, EvalCaseResult } from "@/types.ts";
 import {
   defaultToolConfigId,
   resolveToolConfig,
-} from "../tool-configs/index.ts";
-import type { ToolConfig } from "../tool-configs/types.ts";
+} from "@/tool-configs/index.ts";
+import type { ToolConfig } from "@/tool-configs/types.ts";
 import { runAssertionSpecs } from "./assertion-registry.ts";
 
 /** applyAssertions runs declarative specs for one evaluation result. */

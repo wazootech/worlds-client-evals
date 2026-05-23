@@ -1,25 +1,25 @@
 import { parseArgs } from "@std/cli/parse-args";
-import { evalCases } from "../cases/index.ts";
+import { evalCases } from "@/cases/index.ts";
 import {
   writeCompareResult,
   writeStatsResult,
   writeSuiteResult,
-} from "../results/result-store.ts";
+} from "@/results/result-store.ts";
 import {
   buildCompareResult,
   runEvalSuiteForToolConfig,
-} from "../runner/run-eval-suite.ts";
+} from "@/runner/run-eval-suite.ts";
 import {
   defaultToolConfigId,
   resolveToolConfig,
   resolveToolConfigs,
-} from "../tool-configs/index.ts";
+} from "@/tool-configs/index.ts";
 import type {
   EvalCaseDefinition,
   EvalCompareResult,
   EvalStatsResult,
   EvalSuiteResult,
-} from "../types.ts";
+} from "@/types.ts";
 
 const providerId = Deno.env.get("EVAL_PROVIDER_ID") ?? "google";
 const modelId = Deno.env.get("EVAL_MODEL_ID") ?? "gemini-3.1-flash-lite";

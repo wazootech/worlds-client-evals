@@ -1,17 +1,17 @@
 import { assertEquals, assertFalse, assertThrows } from "@std/assert";
-import { applyAssertions } from "../../src/assertions/apply-assertions.ts";
+import { applyAssertions } from "@/assertions/apply-assertions.ts";
 import {
   extractSearchSubjects,
   extractSparqlBindingLiterals,
-} from "../../src/assertions/trajectory-reducers.ts";
-import { evalCases } from "../../src/cases/index.ts";
-import { resolveCaseTestFixture } from "../../src/cases/test-fixtures.ts";
-import type { EvalCaseResult, EvalToolRecord } from "../../src/types.ts";
+} from "@/assertions/trajectory-reducers.ts";
+import { evalCases } from "@/cases/index.ts";
+import { resolveCaseTestFixture } from "@/cases/test-fixtures.ts";
+import type { EvalCaseResult, EvalToolRecord } from "@/types.ts";
 import {
   DISTRACTOR_EXPECTED_HOUSE_LITERAL,
   EXPECTED_HOUSE_LITERAL,
   WORK_SUBJECT_URI,
-} from "../../src/fixtures/primary-world.ts";
+} from "@/fixtures/primary-world.ts";
 
 /** createEvalCaseResult builds a minimal case result for assertion routing tests. */
 function createEvalCaseResult(

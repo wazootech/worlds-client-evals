@@ -1,4 +1,4 @@
-import { createEvalTools } from "../tools/create-eval-tools.ts";
+import { createEvalTools } from "@/tools/create-eval-tools.ts";
 import { strictEvalToolConfig } from "./strict-eval-tool-config.ts";
 import type { ToolConfig } from "./types.ts";
 

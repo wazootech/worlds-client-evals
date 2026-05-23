@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from "@std/assert";
-import { evalCases } from "../../src/cases/index.ts";
-import { parseCliOptions, selectEvalCases } from "../../src/cli/run.ts";
+import { evalCases } from "@/cases/index.ts";
+import { parseCliOptions, selectEvalCases } from "@/cli/run.ts";
 
 Deno.test("parseCliOptions rejects removed golden flags", () => {
   assertThrows(

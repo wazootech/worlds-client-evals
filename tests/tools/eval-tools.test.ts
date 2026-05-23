@@ -1,12 +1,12 @@
 import { assertEquals, assertFalse } from "@std/assert";
-import { createEvalTools } from "../../src/tools/create-eval-tools.ts";
-import { isReadOnlySparqlQuery } from "../../src/tools/is-read-only-sparql-query.ts";
+import { createEvalTools } from "@/tools/create-eval-tools.ts";
+import { isReadOnlySparqlQuery } from "@/tools/is-read-only-sparql-query.ts";
 import {
   createSeededWorldClient,
   EXPECTED_HOUSE_LITERAL,
   PROTAGONIST_SUBJECT_URI,
   WAZOO_VOCAB_NAMESPACE,
-} from "../../src/fixtures/primary-world.ts";
+} from "@/fixtures/primary-world.ts";
 
 const READ_ONLY_QUERIES = [
   "SELECT ?s WHERE { ?s ?p ?o }",

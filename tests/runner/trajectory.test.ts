@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { buildTrajectory } from "../../src/runner/build-trajectory.ts";
+import { buildTrajectory } from "@/runner/build-trajectory.ts";
 
 Deno.test("buildTrajectory pairs tool results by toolCallId", () => {
   const trajectory = buildTrajectory([{

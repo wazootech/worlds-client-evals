@@ -1,6 +1,6 @@
 import { assertStringIncludes } from "@std/assert";
 import { renderEvalReport } from "../../scripts/render-eval-report.ts";
-import type { EvalStatsResult, EvalSuiteResult } from "../../src/types.ts";
+import type { EvalStatsResult, EvalSuiteResult } from "@/types.ts";
 
 Deno.test("renderEvalReport surfaces regressions and near misses", () => {
   const statsResult: EvalStatsResult = {

@@ -1,5 +1,5 @@
-import type { EvalCaseResult, EvalToolRecord } from "../types.ts";
-import type { ToolConfig } from "../tool-configs/types.ts";
+import type { EvalCaseResult, EvalToolRecord } from "@/types.ts";
+import type { ToolConfig } from "@/tool-configs/types.ts";
 
 /** normalizeOutputText canonicalizes free-form final text before tolerant comparison. */
 export function normalizeOutputText(value: string): string {

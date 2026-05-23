@@ -1,4 +1,4 @@
-import type { AssertionSpec, EvalCaseDefinition } from "../types.ts";
+import type { AssertionSpec, EvalCaseDefinition } from "@/types.ts";
 import {
   AUTHOR_LITERAL,
   BLOCKED_INSERT_LITERAL,
@@ -9,12 +9,12 @@ import {
   WAZOO_VOCAB_NAMESPACE,
   WORK_SEARCH_LABEL,
   WORK_SUBJECT_URI,
-} from "../fixtures/primary-world.ts";
+} from "@/fixtures/primary-world.ts";
 import {
   SCHOLAR_AUTHOR_LITERAL,
   SCHOLAR_PAPER_SEARCH_LABEL,
   SCHOLAR_VENUE_LITERAL,
-} from "../fixtures/scholar-world.ts";
+} from "@/fixtures/scholar-world.ts";
 import {
   HIERARCHY_CREATURE_DISCOVERY_QUERY,
   HIERARCHY_CREATURE_LABEL,
@@ -25,7 +25,7 @@ import {
   HIERARCHY_VOCAB_NAMESPACE,
   HIERARCHY_WYVERN_LABEL,
   UNKNOWN_HIERARCHY_LABEL,
-} from "../fixtures/hierarchy-world.ts";
+} from "@/fixtures/hierarchy-world.ts";
 
 /** protocolAssertions bundles the standard discover-then-verify checks. */
 function protocolAssertions(maxSteps: number): AssertionSpec[] {

@@ -4,7 +4,7 @@ import type {
   EvalCompareResult,
   EvalStatsResult,
   EvalSuiteResult,
-} from "../types.ts";
+} from "@/types.ts";
 
 /** resolveRepositoryRoot returns the eval harness repository root directory. */
 export function resolveRepositoryRoot(): string {

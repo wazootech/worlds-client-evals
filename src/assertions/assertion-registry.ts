@@ -2,9 +2,9 @@ import type {
   AssertionSpec,
   EvalAssertionResult,
   EvalCaseResult,
-} from "../types.ts";
-import type { ToolConfig } from "../tool-configs/types.ts";
-import { TRACKED_FIXTURE_LITERALS } from "../fixtures/tracked-fixture-literals.ts";
+} from "@/types.ts";
+import type { ToolConfig } from "@/tool-configs/types.ts";
+import { TRACKED_FIXTURE_LITERALS } from "@/fixtures/tracked-fixture-literals.ts";
 import {
   collectToolOutputLiterals,
   extractSearchSubjects,

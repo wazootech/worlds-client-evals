@@ -1,14 +1,14 @@
-import type { EvalCaseTestFixture, EvalToolRecord } from "../types.ts";
+import type { EvalCaseTestFixture, EvalToolRecord } from "@/types.ts";
 import {
   AUTHOR_LITERAL,
   EXPECTED_HOUSE_LITERAL,
   WORK_SUBJECT_URI,
-} from "../fixtures/primary-world.ts";
+} from "@/fixtures/primary-world.ts";
 import {
   PAPER_SUBJECT_URI,
   SCHOLAR_AUTHOR_LITERAL,
   SCHOLAR_VENUE_LITERAL,
-} from "../fixtures/scholar-world.ts";
+} from "@/fixtures/scholar-world.ts";
 import {
   HIERARCHY_CREATURE_LABEL,
   HIERARCHY_CREATURE_SUBJECT_URI,
@@ -17,7 +17,7 @@ import {
   HIERARCHY_NEST_LOCATION_LITERAL,
   HIERARCHY_NEST_SUBJECT_URI,
   HIERARCHY_WYVERN_LABEL,
-} from "../fixtures/hierarchy-world.ts";
+} from "@/fixtures/hierarchy-world.ts";
 
 /** createPassingHappyPathTrajectory returns a trajectory that satisfies happy-path assertions. */
 function createPassingHappyPathTrajectory(): EvalToolRecord[] {

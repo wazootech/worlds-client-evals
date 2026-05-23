@@ -4,10 +4,10 @@ import {
   compileEvalPrompt,
   defaultToolConfigId,
   resolveToolConfig,
-} from "../tool-configs/index.ts";
-import type { ToolConfig } from "../tool-configs/types.ts";
-import type { EvalCaseDefinition, EvalCaseResult } from "../types.ts";
-import { resolveFixture } from "../fixtures/index.ts";
+} from "@/tool-configs/index.ts";
+import type { ToolConfig } from "@/tool-configs/types.ts";
+import type { EvalCaseDefinition, EvalCaseResult } from "@/types.ts";
+import { resolveFixture } from "@/fixtures/index.ts";
 import { EVAL_AGENT_SYSTEM_PROMPT } from "./eval-agent-system-prompt.ts";
 import { buildTrajectory } from "./build-trajectory.ts";
 

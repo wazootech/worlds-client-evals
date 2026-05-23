@@ -1,4 +1,4 @@
-import type { EvalToolRecord } from "../types.ts";
+import type { EvalToolRecord } from "@/types.ts";
 
 /** buildTrajectory flattens the AI SDK step history into a tool sequence. */
 export function buildTrajectory(

@@ -2,9 +2,9 @@ import {
   buildTable,
   formatDelta,
   formatPercent,
-} from "../src/reporting/markdown-table.ts";
-import { findNewestCompareResultPath } from "../src/results/result-store.ts";
-import type { EvalAssertionPassRate, EvalCompareResult } from "../src/types.ts";
+} from "@/reporting/markdown-table.ts";
+import { findNewestCompareResultPath } from "@/results/result-store.ts";
+import type { EvalAssertionPassRate, EvalCompareResult } from "@/types.ts";
 
 const DEFAULT_RESULTS_DIRECTORY = "results";
 

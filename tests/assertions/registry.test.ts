@@ -1,11 +1,11 @@
 import { assertEquals, assertFalse } from "@std/assert";
-import { runAssertionSpecs } from "../../src/assertions/assertion-registry.ts";
-import { resolveToolConfig } from "../../src/tool-configs/index.ts";
-import type { EvalCaseResult, EvalToolRecord } from "../../src/types.ts";
+import { runAssertionSpecs } from "@/assertions/assertion-registry.ts";
+import { resolveToolConfig } from "@/tool-configs/index.ts";
+import type { EvalCaseResult, EvalToolRecord } from "@/types.ts";
 import {
   EXPECTED_HOUSE_LITERAL,
   WORK_SUBJECT_URI,
-} from "../../src/fixtures/primary-world.ts";
+} from "@/fixtures/primary-world.ts";
 
 const toolConfig = resolveToolConfig("baseline");
 

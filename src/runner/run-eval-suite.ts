@@ -1,6 +1,6 @@
-import { applyAssertions } from "../assertions/index.ts";
-import { defaultToolConfigId } from "../tool-configs/index.ts";
-import type { ToolConfig } from "../tool-configs/types.ts";
+import { applyAssertions } from "@/assertions/index.ts";
+import { defaultToolConfigId } from "@/tool-configs/index.ts";
+import type { ToolConfig } from "@/tool-configs/types.ts";
 import type {
   EvalAssertionPassRate,
   EvalCaseDefinition,
@@ -9,7 +9,7 @@ import type {
   EvalCompareResult,
   EvalStatsResult,
   EvalSuiteResult,
-} from "../types.ts";
+} from "@/types.ts";
 import { runEvalCase } from "./run-eval-case.ts";
 
 /** EvalSuiteRunOptions configures provider metadata for one suite execution. */

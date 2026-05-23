@@ -1,8 +1,5 @@
 import { assertEquals, assertThrows } from "@std/assert";
-import {
-  compileEvalPrompt,
-  resolveToolConfig,
-} from "../../src/tool-configs/index.ts";
+import { compileEvalPrompt, resolveToolConfig } from "@/tool-configs/index.ts";
 
 Deno.test("resolveToolConfig returns the baseline config", () => {
   const toolConfig = resolveToolConfig("baseline");

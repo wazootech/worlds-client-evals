@@ -1,6 +1,6 @@
 import { assertStringIncludes } from "@std/assert";
 import { renderCompareReport } from "../../scripts/render-compare-report.ts";
-import type { EvalCompareResult } from "../../src/types.ts";
+import type { EvalCompareResult } from "@/types.ts";
 
 Deno.test("renderCompareReport surfaces case and assertion deltas", () => {
   const compareResult: EvalCompareResult = {

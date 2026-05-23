@@ -1,11 +1,11 @@
 import { assertEquals } from "@std/assert";
-import { evalCases } from "../../src/cases/index.ts";
+import { evalCases } from "@/cases/index.ts";
 import {
   aggregateEvalStats,
   buildCompareResult,
   synthesizeStatsFromSuite,
-} from "../../src/runner/run-eval-suite.ts";
-import type { EvalCaseResult, EvalSuiteResult } from "../../src/types.ts";
+} from "@/runner/run-eval-suite.ts";
+import type { EvalCaseResult, EvalSuiteResult } from "@/types.ts";
 
 /** createEvalCaseResult builds a minimal case result for suite aggregation tests. */
 function createEvalCaseResult(
