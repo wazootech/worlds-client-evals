@@ -1,8 +1,8 @@
 import { createClient } from "@libsql/client";
 import { QueryEngine } from "@comunica/query-sparql-rdfjs-lite";
-import type { Client } from "@worlds/client";
+import { Client } from "@worlds/client";
 import { ComunicaSparqlEngine } from "@worlds/client/adapters/comunica";
-import { createLibsqlClient } from "@worlds/client/adapters/libsql";
+import { createLibsqlClientOptions } from "@worlds/client/adapters/libsql";
 
 import { GENID_BASE, WAZOO_VOCAB_NAMESPACE } from "./constants.ts";
 export { GENID_BASE, WAZOO_VOCAB_NAMESPACE };
@@ -72,11 +72,13 @@ const SEEDED_WORLD_DATA = `
 export async function createSeededWorldClient(): Promise<Client> {
   const libsqlClient = createClient({ url: ":memory:" });
   const queryEngine = new QueryEngine();
-  const client = await createLibsqlClient({
-    client: libsqlClient,
-    createSparqlEngine: ({ store }) =>
-      new ComunicaSparqlEngine({ queryEngine, store }),
-  });
+  const client = new Client(
+    await createLibsqlClientOptions({
+      client: libsqlClient,
+      createSparqlEngine: ({ libsqlStore }) =>
+        new ComunicaSparqlEngine({ queryEngine, store: libsqlStore }),
+    }),
+  );
 
   await client.import({
     source: {
