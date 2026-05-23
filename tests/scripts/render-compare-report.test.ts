@@ -9,6 +9,7 @@ Deno.test("renderCompareReport surfaces case and assertion deltas", () => {
     timestamp: "2026-05-21T00:00:00.000Z",
     trialCount: 10,
     minPassRate: 0.7,
+    baselineToolConfigId: "baseline",
     toolConfigIds: ["baseline", "experimental"],
     statsResults: [],
     caseComparisons: [{

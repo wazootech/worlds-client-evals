@@ -1,32 +1,17 @@
 import { assertEquals, assertFalse, assertThrows } from "@std/assert";
+import { applyAssertions } from "../../src/assertions/apply-assertions.ts";
 import {
-  applyAssertions,
-  assertOutputExcludesLiteral,
   extractSearchSubjects,
   extractSparqlBindingLiterals,
-} from "../../src/assertions/index.ts";
+} from "../../src/assertions/trajectory-reducers.ts";
 import { evalCases } from "../../src/cases/index.ts";
+import { resolveCaseTestFixture } from "../../src/cases/test-fixtures.ts";
 import type { EvalCaseResult, EvalToolRecord } from "../../src/types.ts";
 import {
-  AUTHOR_LITERAL,
   DISTRACTOR_EXPECTED_HOUSE_LITERAL,
   EXPECTED_HOUSE_LITERAL,
   WORK_SUBJECT_URI,
 } from "../../src/fixtures/primary-world.ts";
-import {
-  PAPER_SUBJECT_URI,
-  SCHOLAR_AUTHOR_LITERAL,
-  SCHOLAR_VENUE_LITERAL,
-} from "../../src/fixtures/scholar-world.ts";
-import {
-  HIERARCHY_CREATURE_LABEL,
-  HIERARCHY_CREATURE_SUBJECT_URI,
-  HIERARCHY_DRAGON_LABEL,
-  HIERARCHY_DRAGON_SUBJECT_URI,
-  HIERARCHY_NEST_LOCATION_LITERAL,
-  HIERARCHY_NEST_SUBJECT_URI,
-  HIERARCHY_WYVERN_LABEL,
-} from "../../src/fixtures/hierarchy-world.ts";
 
 /** createEvalCaseResult builds a minimal case result for assertion routing tests. */
 function createEvalCaseResult(
@@ -36,6 +21,7 @@ function createEvalCaseResult(
     description: overrides.description ?? overrides.id,
     prompt: overrides.prompt ?? "",
     output: overrides.output ?? "",
+    runCompleted: overrides.runCompleted ?? true,
     success: overrides.success ?? true,
     metadata: {
       providerId: "google",
@@ -83,30 +69,6 @@ function createPassingHappyPathTrajectory(): EvalToolRecord[] {
   ];
 }
 
-/** createTrajectory builds a search+SPARQL trajectory with the given subjects and bindings. */
-function createTrajectory(
-  searchSubject: string,
-  sparqlBindings: Record<string, { type: string; value: string }>,
-): EvalToolRecord[] {
-  return [
-    {
-      stepIndex: 0,
-      toolName: "searchWorld",
-      args: { query: "search-query" },
-      result: { success: true, results: [{ subject: searchSubject }] },
-    },
-    {
-      stepIndex: 1,
-      toolName: "executeSparql",
-      args: { query: `SELECT ?x WHERE { <${searchSubject}> ?p ?o }` },
-      result: {
-        success: true,
-        data: { results: { bindings: [sparqlBindings] } },
-      },
-    },
-  ];
-}
-
 /** resolveEvalCase returns the catalog entry for a case id. */
 function resolveEvalCase(caseId: string) {
   const evalCase = evalCases.find((entry) => entry.id === caseId);
@@ -124,79 +86,11 @@ Deno.test("evalCases defines non-empty assertion specs for every catalog entry",
 
 for (const evalCase of evalCases) {
   Deno.test(`applyAssertions runs declarative specs for ${evalCase.id}`, () => {
-    const caseId = evalCase.id;
-    const trajectory = caseId === "sparql-updates-blocked" ||
-        caseId === "sparql-delete-blocked"
-      ? [{
-        stepIndex: 0,
-        toolName: "executeSparql",
-        args: {
-          query: caseId === "sparql-delete-blocked"
-            ? "DELETE WHERE { ?s ?p ?o }"
-            : "INSERT { ?s ?p ?o } WHERE {}",
-        },
-        result: {
-          success: false,
-          error: "Only read-only SPARQL queries are allowed for this agent.",
-        },
-      }]
-      : caseId === "search-miss-unknown-label" ||
-          caseId === "hierarchy-no-join-invent"
-      ? [{
-        stepIndex: 0,
-        toolName: "searchWorld",
-        args: { query: "z9Qk4WnP" },
-        result: { success: true, results: [] },
-      }]
-      : caseId === "scholar-paper-venue"
-      ? createTrajectory(PAPER_SUBJECT_URI, {
-        venue: { type: "literal", value: SCHOLAR_VENUE_LITERAL },
-      })
-      : caseId === "hierarchy-type-discovery"
-      ? createTrajectory(HIERARCHY_CREATURE_SUBJECT_URI, {
-        creature: { type: "literal", value: HIERARCHY_CREATURE_LABEL },
-      })
-      : caseId === "hierarchy-multi-hop"
-      ? createTrajectory(HIERARCHY_NEST_SUBJECT_URI, {
-        location: { type: "literal", value: HIERARCHY_NEST_LOCATION_LITERAL },
-      })
-      : caseId === "hierarchy-sibling-class"
-      ? createTrajectory(HIERARCHY_DRAGON_SUBJECT_URI, {
-        dragon: { type: "literal", value: HIERARCHY_DRAGON_LABEL },
-        wyvern: { type: "literal", value: HIERARCHY_WYVERN_LABEL },
-      })
-      : caseId === "hierarchy-optional-pattern"
-      ? createTrajectory(HIERARCHY_NEST_SUBJECT_URI, {})
-      : createPassingHappyPathTrajectory();
-
-    const output = caseId === "sparql-updates-blocked" ||
-        caseId === "sparql-delete-blocked"
-      ? ""
-      : caseId === "alternate-question-author"
-      ? `Author: ${AUTHOR_LITERAL}`
-      : caseId === "search-miss-unknown-label"
-      ? "No matching work was found in the graph."
-      : caseId === "scholar-paper-author"
-      ? `Author: ${SCHOLAR_AUTHOR_LITERAL}`
-      : caseId === "scholar-paper-venue"
-      ? `Venue: ${SCHOLAR_VENUE_LITERAL}`
-      : caseId === "scholar-paper-properties"
-      ? "Paper properties found."
-      : caseId === "hierarchy-type-discovery"
-      ? `Superclass: ${HIERARCHY_CREATURE_LABEL}`
-      : caseId === "hierarchy-multi-hop"
-      ? `Location: ${HIERARCHY_NEST_LOCATION_LITERAL}`
-      : caseId === "hierarchy-no-join-invent"
-      ? "No location found in the graph."
-      : caseId === "hierarchy-sibling-class"
-      ? `Subclasses: ${HIERARCHY_DRAGON_LABEL}, ${HIERARCHY_WYVERN_LABEL}`
-      : caseId === "hierarchy-optional-pattern"
-      ? "Optional pattern did not match any location."
-      : `The house is ${EXPECTED_HOUSE_LITERAL}.`;
+    const { trajectory, output } = resolveCaseTestFixture(evalCase.id);
 
     const result = applyAssertions(
       createEvalCaseResult({
-        id: caseId,
+        id: evalCase.id,
         output,
         metadata: {
           providerId: "google",
@@ -314,21 +208,6 @@ Deno.test("extractSparqlBindingLiterals returns empty array for failed or missin
   assertEquals(extractSparqlBindingLiterals({ success: false }), []);
   assertEquals(extractSparqlBindingLiterals({ success: true, data: null }), []);
   assertEquals(extractSparqlBindingLiterals("not-an-object"), []);
-});
-
-Deno.test("assertOutputExcludesLiteral rejects output containing forbidden literal", () => {
-  const result = createEvalCaseResult({
-    id: "search-miss-unknown-label",
-    output: `House: ${EXPECTED_HOUSE_LITERAL}`,
-  });
-
-  const assertion = assertOutputExcludesLiteral(
-    result,
-    EXPECTED_HOUSE_LITERAL,
-    "does-not-invent-house",
-  );
-
-  assertFalse(assertion.pass);
 });
 
 Deno.test("applyAssertions search-miss fails when model invents the house literal", () => {

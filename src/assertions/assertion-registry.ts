@@ -100,6 +100,7 @@ function runAssertionSpec(
         );
       const rejectedQuery = extractSparqlRejectedQuery(
         result.metadata.trajectory,
+        toolConfig.queryName,
       );
       return {
         name: spec.name,

@@ -17,6 +17,7 @@ function createEvalCaseResult(
     description: overrides.description ?? overrides.id,
     prompt: overrides.prompt ?? "",
     output: overrides.output ?? "",
+    runCompleted: overrides.runCompleted ?? true,
     success: overrides.success ?? true,
     metadata: {
       providerId: "google",
@@ -144,6 +145,25 @@ Deno.test("runAssertionSpecs final-answer-contains passes when output includes b
   }], toolConfig);
 
   assertEquals(assertions[0].pass, true);
+});
+
+Deno.test("runAssertionSpecs output-excludes rejects forbidden literal in output", () => {
+  const result = createEvalCaseResult({
+    id: "search-miss-unknown-label",
+    output: `House: ${EXPECTED_HOUSE_LITERAL}`,
+  });
+
+  const [assertion] = runAssertionSpecs(
+    result,
+    [{
+      name: "does-not-invent-house",
+      kind: "output-excludes",
+      literal: EXPECTED_HOUSE_LITERAL,
+    }],
+    toolConfig,
+  );
+
+  assertFalse(assertion.pass);
 });
 
 Deno.test("runAssertionSpecs sparql-handoff-valid fails without subject in SPARQL args", () => {

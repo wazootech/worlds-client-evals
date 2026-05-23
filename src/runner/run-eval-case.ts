@@ -7,35 +7,9 @@ import {
 } from "../tool-configs/index.ts";
 import type { ToolConfig } from "../tool-configs/types.ts";
 import type { EvalCaseDefinition, EvalCaseResult } from "../types.ts";
-import type { Client } from "@worlds/client";
-import { createSeededWorldClient } from "../fixtures/primary-world.ts";
-import { createSeededScholarWorldClient } from "../fixtures/scholar-world.ts";
-import { createSeededHierarchyWorldClient } from "../fixtures/hierarchy-world.ts";
+import { resolveFixture } from "../fixtures/index.ts";
 import { EVAL_AGENT_SYSTEM_PROMPT } from "./eval-agent-system-prompt.ts";
 import { buildTrajectory } from "./build-trajectory.ts";
-
-/** fixtureFactories maps fixtureId to an async factory that returns a seeded world client. */
-const fixtureFactories: Record<string, () => Promise<Client>> = {
-  primary: createSeededWorldClient,
-  scholar: createSeededScholarWorldClient,
-  hierarchy: createSeededHierarchyWorldClient,
-};
-
-/** resolveFixture resolves the world client factory for a given test case. */
-function resolveFixture(
-  testCase: { fixtureId?: string },
-): () => Promise<Client> {
-  const fixtureId = testCase.fixtureId ?? "primary";
-  const factory = fixtureFactories[fixtureId];
-  if (!factory) {
-    throw new Error(
-      `Unknown fixtureId: "${fixtureId}". Available fixtures: ${
-        Object.keys(fixtureFactories).join(", ")
-      }`,
-    );
-  }
-  return factory;
-}
 
 /** runEvalCase executes one evaluation scenario against the seeded world. */
 export async function runEvalCase(
@@ -68,7 +42,7 @@ export async function runEvalCase(
 
   try {
     const google = createGoogleGenerativeAI();
-    const client = await resolveFixture(testCase)();
+    const client = await resolveFixture(testCase.fixtureId)();
     const tools = toolConfig.factory(client);
     const result = await generateText({
       model: google(modelId),
@@ -84,7 +58,8 @@ export async function runEvalCase(
       description: testCase.description,
       prompt,
       output: result.text,
-      success: true,
+      runCompleted: true,
+      success: false,
       metadata: {
         providerId,
         modelId,
@@ -109,6 +84,7 @@ export async function runEvalCase(
       description: testCase.description,
       prompt,
       output: "",
+      runCompleted: false,
       success: false,
       metadata: {
         ...emptyMetadata,
