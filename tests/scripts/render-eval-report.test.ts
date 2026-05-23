@@ -76,6 +76,7 @@ Deno.test("renderEvalReport falls back to latest suite results", () => {
         description: "Single trial failure",
         prompt: "prompt",
         output: "model output with | pipe",
+        runCompleted: true,
         success: false,
         metadata: {
           providerId: "google",

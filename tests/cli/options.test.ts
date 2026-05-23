@@ -28,13 +28,13 @@ Deno.test("parseCliOptions reads tool config and compare flags", () => {
     "--tool-config",
     "baseline",
     "--compare",
-    "baseline,with-resolve-resource",
+    "baseline,strict-eval",
   ]);
 
   assertEquals(cliOptions.toolConfigId, "baseline");
   assertEquals(cliOptions.compareToolConfigIds, [
     "baseline",
-    "with-resolve-resource",
+    "strict-eval",
   ]);
 });
 

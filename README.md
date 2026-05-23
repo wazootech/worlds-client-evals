@@ -79,8 +79,12 @@ API key.
 | `src/tools/`                            | Eval-isolated tools and SPARQL read-only guard   |
 | `src/assertions/assertion-registry.ts`  | Composable assertion kinds (`runAssertionSpecs`) |
 | `src/assertions/trajectory-reducers.ts` | Shared trajectory extractors and diagnostics     |
-| `src/cases/case-assertion-specs.ts`     | Declarative `AssertionSpec[]` per case id        |
-| `src/cases/index.ts`                    | Scenario catalog (prompts + attached specs)      |
+| `src/cases/index.ts`                    | Eval case catalog (prompts + assertion specs)    |
+| `src/cases/test-fixtures.ts`            | Golden trajectories and outputs for case tests   |
+| `src/fixtures/index.ts`                 | Seeded world fixture registry                    |
+| `src/runner/run-eval-suite.ts`          | Suite orchestration, stats, and compare assembly |
+| `src/results/result-store.ts`           | Result artifact paths and JSON persistence       |
+| `src/reporting/markdown-table.ts`       | Shared Markdown table helpers for CI reports     |
 | `src/fixtures/primary-world.ts`         | Primary fixture (work -> protagonist -> house)   |
 | `src/fixtures/scholar-world.ts`         | Scholar fixture (paper -> author/venue/year)     |
 | `tests/`                                | Deterministic unit tests                         |
@@ -102,9 +106,8 @@ discussion publication with a warning.
 
 - Deterministic assertions are the pass/fail gate. Prefer proofs (SPARQL guard,
   tool descriptions, `@worlds/client` invariants) over new eval code; when tests
-  are needed, add a registry `kind` once and wire cases in
-  `src/cases/case-assertion-specs.ts`. See [AGENTS.md](AGENTS.md) for the full
-  proof-vs-test policy.
+  are needed, add a registry `kind` once and wire cases in `src/cases/index.ts`.
+  See [AGENTS.md](AGENTS.md) for the full proof-vs-test policy.
 - Generated trajectories are external artifacts, not source-controlled history.
 - Incomplete, rate-limited, or credential-skipped live runs are operational
   signals only; do not cite them as benchmark evidence.

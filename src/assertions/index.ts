@@ -1,3 +1,2 @@
-export * from "./apply-assertions.ts";
-export * from "./assertion-registry.ts";
-export * from "./trajectory-reducers.ts";
+export { applyAssertions } from "./apply-assertions.ts";
+export { runAssertionSpecs } from "./assertion-registry.ts";

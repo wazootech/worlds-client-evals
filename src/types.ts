@@ -1,3 +1,5 @@
+import type { FixtureId } from "./fixtures/index.ts";
+
 /** EvalTokenUsage captures token accounting for a single agent run. */
 export interface EvalTokenUsage {
   prompt?: number;
@@ -57,6 +59,12 @@ export type AssertionSpec =
   | { name: string; kind: "sparql-answer-excludes"; literal: string }
   | { name: string; kind: "literals-subset-of-tools" };
 
+/** EvalCaseTestFixture supplies deterministic trajectory and output for unit tests. */
+export interface EvalCaseTestFixture {
+  trajectory: EvalToolRecord[];
+  output: string;
+}
+
 /** EvalCaseDefinition describes one agent evaluation scenario. */
 export interface EvalCaseDefinition {
   id: string;
@@ -64,7 +72,7 @@ export interface EvalCaseDefinition {
   prompt?: string;
   promptTemplate?: string;
   maxSteps?: number;
-  fixtureId?: string;
+  fixtureId?: FixtureId;
   assertions: AssertionSpec[];
 }
 
@@ -74,6 +82,9 @@ export interface EvalCaseResult {
   description: string;
   prompt: string;
   output: string;
+  /** runCompleted is true when the agent run finished without throwing. */
+  runCompleted: boolean;
+  /** success is true when the run completed and every assertion passed. */
   success: boolean;
   metadata: EvalRunMetadata;
   assertions: EvalAssertionResult[];
@@ -135,6 +146,7 @@ export interface EvalCompareResult {
   timestamp: string;
   trialCount: number;
   minPassRate?: number;
+  baselineToolConfigId: string;
   toolConfigIds: string[];
   statsResults: EvalStatsResult[];
   caseComparisons: EvalCaseComparison[];
