@@ -66,6 +66,18 @@ stay deferred until protocol assertions are stable.
 **Upstream:** index freshness and co-store invariants belong in
 `@worlds/client`, not duplicated in this harness.
 
+**CI on push and pull request:**
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `deno task ci` only
+(format, lint, unit tests). It does not call Gemini. Live agent evals run via
+[`.github/workflows/evals.yml`](.github/workflows/evals.yml) on manual dispatch
+or the weekly schedule when `GOOGLE_GENERATIVE_AI_API_KEY` is configured.
+
+**Epistemic closure:** `literals-subset-of-tools` scans
+[`TRACKED_FIXTURE_LITERALS`](src/fixtures/tracked-fixture-literals.ts). Add new
+fixture answer strings there;
+[`tests/fixtures/tracked-fixture-literals.test.ts`](tests/fixtures/tracked-fixture-literals.test.ts)
+fails if any canonical fixture string is missing from the list.
+
 ## Agent evals CI and artifacts
 
 The [Agent evals](.github/workflows/evals.yml) workflow is the credentialed

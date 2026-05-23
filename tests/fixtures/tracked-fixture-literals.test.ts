@@ -1,3 +1,5 @@
+import { assertEquals } from "@std/assert";
+import { TRACKED_FIXTURE_LITERALS } from "../../src/fixtures/tracked-fixture-literals.ts";
 import {
   AUTHOR_LITERAL,
   BLOCKED_INSERT_LITERAL,
@@ -9,13 +11,7 @@ import {
   PROTAGONIST_LABEL,
   UNKNOWN_WORK_SEARCH_LABEL,
   WORK_SEARCH_LABEL,
-} from "./primary-world.ts";
-import {
-  PAPER_YEAR_LITERAL,
-  SCHOLAR_AUTHOR_LITERAL,
-  SCHOLAR_PAPER_SEARCH_LABEL,
-  SCHOLAR_VENUE_LITERAL,
-} from "./scholar-world.ts";
+} from "../../src/fixtures/primary-world.ts";
 import {
   HIERARCHY_CREATURE_DISCOVERY_QUERY,
   HIERARCHY_CREATURE_LABEL,
@@ -26,10 +22,16 @@ import {
   HIERARCHY_TREASURE_LABEL,
   HIERARCHY_WYVERN_LABEL,
   UNKNOWN_HIERARCHY_LABEL,
-} from "./hierarchy-world.ts";
+} from "../../src/fixtures/hierarchy-world.ts";
+import {
+  PAPER_YEAR_LITERAL,
+  SCHOLAR_AUTHOR_LITERAL,
+  SCHOLAR_PAPER_SEARCH_LABEL,
+  SCHOLAR_VENUE_LITERAL,
+} from "../../src/fixtures/scholar-world.ts";
 
-/** TRACKED_FIXTURE_LITERALS lists graph literals epistemic-closure checks may cite. */
-export const TRACKED_FIXTURE_LITERALS: readonly string[] = [
+/** FIXTURE_ANSWER_STRINGS lists every fixture string literals-subset-of-tools must track. */
+const FIXTURE_ANSWER_STRINGS = [
   WORK_SEARCH_LABEL,
   PROTAGONIST_LABEL,
   AUTHOR_LITERAL,
@@ -53,4 +55,16 @@ export const TRACKED_FIXTURE_LITERALS: readonly string[] = [
   HIERARCHY_TREASURE_LABEL,
   HIERARCHY_TREASURE_DISCOVERY_QUERY,
   UNKNOWN_HIERARCHY_LABEL,
-];
+] as const;
+
+Deno.test("TRACKED_FIXTURE_LITERALS includes every fixture answer string", () => {
+  const trackedSet = new Set<string>(TRACKED_FIXTURE_LITERALS);
+  const missingStrings = FIXTURE_ANSWER_STRINGS.filter((fixtureString) =>
+    !trackedSet.has(fixtureString)
+  );
+  assertEquals(
+    missingStrings,
+    [],
+    `Add to TRACKED_FIXTURE_LITERALS: ${missingStrings.join(", ")}`,
+  );
+});

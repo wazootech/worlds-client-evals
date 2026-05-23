@@ -64,8 +64,8 @@ API key.
 
 | Layer              | Command           | API key | When                                                                                                             |
 | :----------------- | :---------------- | :------ | :--------------------------------------------------------------------------------------------------------------- |
-| Unit tests         | `deno task ci`    | No      | Every push                                                                                                       |
-| Live agent evals   | `deno task evals` | Yes     | Manual dispatch                                                                                                  |
+| Unit tests         | `deno task ci`    | No      | Every push and pull request (GitHub `CI` workflow)                                                               |
+| Live agent evals   | `deno task evals` | Yes     | Local dev; GitHub `Agent evals` workflow (manual dispatch)                                                       |
 | Scheduled baseline | `--trials 10`     | Yes     | Weekly (Mon 06:00 UTC), skipped if no harness commits in 7 days; uploads `results/*.json` as a workflow artifact |
 | Manual dispatch    | configurable      | Yes     | Same workflow artifact flow as the scheduled baseline                                                            |
 
