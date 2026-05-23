@@ -24,6 +24,9 @@ deno task test
 
 # Run live evals (requires GOOGLE_GENERATIVE_AI_API_KEY)
 deno task evals
+
+# Smoke one case after assertion changes
+deno task evals --filter search-miss-unknown-label
 ```
 
 ## Environment
@@ -68,18 +71,20 @@ API key.
 
 ## Layout
 
-| Path                            | Role                                           |
-| :------------------------------ | :--------------------------------------------- |
-| `src/cli/parse-cli-options.ts`  | CLI entry, filtering, suite execution          |
-| `src/runner/`                   | Agent execution, system prompt, trajectory     |
-| `src/tool-configs/`             | Named tool-set registry for tool iteration     |
-| `src/tools/`                    | Eval-isolated tools and SPARQL read-only guard |
-| `src/assertions/`               | Per-case deterministic assertions              |
-| `src/cases/`                    | Scenario catalog                               |
-| `src/fixtures/primary-world.ts` | Primary fixture (work -> protagonist -> house) |
-| `src/fixtures/scholar-world.ts` | Scholar fixture (paper -> author/venue/year)   |
-| `tests/`                        | Deterministic unit tests                       |
-| `results/`                      | Local run output (gitignored)                  |
+| Path                                    | Role                                             |
+| :-------------------------------------- | :----------------------------------------------- |
+| `src/cli/parse-cli-options.ts`          | CLI entry, filtering, suite execution            |
+| `src/runner/`                           | Agent execution, system prompt, trajectory       |
+| `src/tool-configs/`                     | Named tool-set registry for tool iteration       |
+| `src/tools/`                            | Eval-isolated tools and SPARQL read-only guard   |
+| `src/assertions/assertion-registry.ts`  | Composable assertion kinds (`runAssertionSpecs`) |
+| `src/assertions/trajectory-reducers.ts` | Shared trajectory extractors and diagnostics     |
+| `src/cases/case-assertion-specs.ts`     | Declarative `AssertionSpec[]` per case id        |
+| `src/cases/index.ts`                    | Scenario catalog (prompts + attached specs)      |
+| `src/fixtures/primary-world.ts`         | Primary fixture (work -> protagonist -> house)   |
+| `src/fixtures/scholar-world.ts`         | Scholar fixture (paper -> author/venue/year)     |
+| `tests/`                                | Deterministic unit tests                         |
+| `results/`                              | Local run output (gitignored)                    |
 
 ## Eval artifacts from CI
 
@@ -93,16 +98,18 @@ Repository setup: enable GitHub Discussions and create a dedicated category
 named `Evals`. If the category is missing, CI still uploads artifacts and skips
 discussion publication with a warning.
 
-## Evaluation Policy
+## Evaluation policy
 
-- Deterministic assertions are the pass/fail gate. Prefer code checks over LLM
-  judging for tool use, SPARQL handoff, grounding, guard behavior, and step
-  budgets.
+- Deterministic assertions are the pass/fail gate. Prefer proofs (SPARQL guard,
+  tool descriptions, `@worlds/client` invariants) over new eval code; when tests
+  are needed, add a registry `kind` once and wire cases in
+  `src/cases/case-assertion-specs.ts`. See [AGENTS.md](AGENTS.md) for the full
+  proof-vs-test policy.
 - Generated trajectories are external artifacts, not source-controlled history.
 - Incomplete, rate-limited, or credential-skipped live runs are operational
   signals only; do not cite them as benchmark evidence.
-- Add real dogfooding failures back into `src/cases/` and `src/assertions/` so
-  important regressions stay caught.
+- Add dogfooding failures by reusing an existing assertion `kind` on a new or
+  existing case; extend the registry only when no composable kind fits.
 
 ## Tool configuration iteration
 

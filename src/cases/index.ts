@@ -1,4 +1,5 @@
 import type { EvalCaseDefinition } from "../types.ts";
+import { caseAssertionSpecs } from "./case-assertion-specs.ts";
 import {
   BLOCKED_INSERT_LITERAL,
   BLOCKED_INSERT_SUBJECT_URI,
@@ -19,8 +20,8 @@ import {
   UNKNOWN_HIERARCHY_LABEL,
 } from "../fixtures/hierarchy-world.ts";
 
-/** evalCases enumerates the phase-one scenarios for the Deno harness. */
-export const evalCases: EvalCaseDefinition[] = [
+/** evalCaseDefinitions enumerates scenario metadata before assertion specs are attached. */
+const evalCaseDefinitions = [
   {
     id: "happy-path-search-then-sparql",
     description: "Happy path uses search then SPARQL traversal",
@@ -153,4 +154,17 @@ export const evalCases: EvalCaseDefinition[] = [
       `Find the dwelling location of the wyvern labeled "${HIERARCHY_WYVERN_LABEL}". First call {{discovery}} with exactly "${HIERARCHY_WYVERN_LABEL}". Then use one {{query}} SELECT with OPTIONAL { <wyvern-uri> <${HIERARCHY_VOCAB_NAMESPACE}dwellsAt> ?nest . ?nest <${HIERARCHY_VOCAB_NAMESPACE}locatedIn> ?location } to check whether the wyvern has a dwelling. Report what you find.`,
     maxSteps: 5,
   },
-];
+] satisfies Omit<EvalCaseDefinition, "assertions">[];
+
+/** evalCases enumerates the phase-one scenarios for the Deno harness. */
+export const evalCases: EvalCaseDefinition[] = evalCaseDefinitions.map(
+  (evalCaseDefinition) => {
+    const assertions = caseAssertionSpecs[evalCaseDefinition.id];
+    if (assertions === undefined || assertions.length === 0) {
+      throw new Error(
+        `Missing assertion specs for case id: ${evalCaseDefinition.id}`,
+      );
+    }
+    return { ...evalCaseDefinition, assertions };
+  },
+);

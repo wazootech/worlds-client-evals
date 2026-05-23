@@ -457,7 +457,9 @@ async function runEvalSuiteForToolConfig(
         break;
       }
 
-      results.push(applyAssertions(rawResult, toolConfig));
+      results.push(
+        applyAssertions(rawResult, testCase.assertions, toolConfig),
+      );
     }
 
     trialSuiteResults.push({

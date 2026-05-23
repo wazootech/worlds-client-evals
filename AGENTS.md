@@ -21,20 +21,50 @@ fixture contains paper, author, venue, and year entities.
 
 ### Eval case
 
-A single evaluation scenario defined by an id, description, prompt, and maximum
-step budget. Cases exercise specific agent behaviors like search-then-SPARQL
-handoff, SPARQL guard enforcement, or distractor disambiguation.
+A single evaluation scenario defined by an id, description, prompt, maximum step
+budget, and a declarative `assertions` list (`AssertionSpec[]` in
+[`src/cases/index.ts`](src/cases/index.ts)). Cases exercise specific agent
+behaviors like search-then-SPARQL handoff, SPARQL guard enforcement, or
+distractor disambiguation.
 
 ### Assertion
 
-A deterministic code-level check applied to an eval result. Assertions verify
-tool usage order, SPARQL grounding, step budgets, guard behavior, and final
-answer correctness.
+A deterministic code-level check applied to an eval result. Each case wires
+named assertion specs;
+[`src/assertions/assertion-registry.ts`](src/assertions/assertion-registry.ts)
+implements a small set of composable kinds (`handoff-valid`, `output-excludes`,
+`literals-subset-of-tools`, etc.). Prefer proofs over new assertion code (see
+Evaluation policy).
+
+### Assertion spec
+
+A declarative entry `{ name, kind, ...params }` on an eval case. The `name` is
+stable for `--trials` and `--compare` pass-rate aggregation; the `kind` selects
+the registry implementation.
 
 ### Tool sequence
 
 The ordered list of tool calls made by the agent during an eval case. The
 expected pattern is `searchWorld` followed by `executeSparql`.
+
+## Evaluation policy
+
+Prefer **proofs** (zero eval code) over **tests** (minimal composable code):
+
+| Layer            | Proof (prefer)                                                    | Test (when needed)                                        |
+| :--------------- | :---------------------------------------------------------------- | :-------------------------------------------------------- |
+| `@worlds/client` | Patch sync, typed `SearchResult`, chunk projection                | —                                                         |
+| Tool boundary    | [`isReadOnlySparqlQuery`](src/tools/is-read-only-sparql-query.ts) | `updates-blocked` observes guard fired                    |
+| Agent contract   | Tool descriptions, `promptTemplate`, system prompt                | Registry kinds on trajectory                              |
+| New regression   | Extend tool description or client invariant first                 | Reuse existing `AssertionSpec` kind; add case wiring only |
+
+When adding a test assertion: one registry `kind`, rich failure `message` (tool
+sequence, allowlist preview, first offending literal). Do not add per-case
+assertion functions or LLM judges. Natural-language / hybrid retrieval cases
+stay deferred until protocol assertions are stable.
+
+**Upstream:** index freshness and co-store invariants belong in
+`@worlds/client`, not duplicated in this harness.
 
 ## Agent evals CI and artifacts
 
