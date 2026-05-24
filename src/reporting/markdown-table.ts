@@ -22,8 +22,8 @@ export function escapeTableCell(value: unknown): string {
 export function buildTable(headers: string[], rows: string[][]): string {
   const headerRow = `| ${headers.map(escapeTableCell).join(" | ")} |`;
   const separatorRow = `| ${headers.map(() => ":---").join(" | ")} |`;
-  const bodyRows = rows.map((row) =>
-    `| ${row.map((cell) => escapeTableCell(cell)).join(" | ")} |`
+  const bodyRows = rows.map(
+    (row) => `| ${row.map((cell) => escapeTableCell(cell)).join(" | ")} |`,
   );
 
   return [headerRow, separatorRow, ...bodyRows].join("\n");

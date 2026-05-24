@@ -24,9 +24,9 @@ export function resolveFixture(
   const factory = fixturesById[resolvedFixtureId];
   if (!factory) {
     throw new Error(
-      `Unknown fixtureId: "${fixtureId}". Available fixtures: ${
-        fixtureIds.join(", ")
-      }`,
+      `Unknown fixtureId: "${fixtureId}". Available fixtures: ${fixtureIds.join(
+        ", ",
+      )}`,
     );
   }
   return factory;

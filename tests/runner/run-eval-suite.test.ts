@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { expect, test } from "bun:test";
 import { evalCases } from "@/cases/index.ts";
 import {
   aggregateEvalStats,
@@ -25,34 +25,40 @@ function createEvalCaseResult(
       trajectory: overrides.metadata?.trajectory ?? [],
       ...overrides.metadata,
     },
-    assertions: overrides.assertions ?? [{
-      name: "final-answer-correct",
-      pass: overrides.success ?? true,
-    }],
+    assertions: overrides.assertions ?? [
+      {
+        name: "final-answer-correct",
+        pass: overrides.success ?? true,
+      },
+    ],
     toolSequence: overrides.toolSequence ?? [],
     ...overrides,
   };
 }
 
-Deno.test("aggregateEvalStats computes case and assertion pass rates across trials", () => {
+test("aggregateEvalStats computes case and assertion pass rates across trials", () => {
   const selectedCases = evalCases.slice(0, 1);
   const trialResults = [
-    [createEvalCaseResult({
-      id: selectedCases[0].id,
-      success: true,
-      assertions: [
-        { name: "final-answer-correct", pass: true },
-        { name: "step-count-bounded", pass: false },
-      ],
-    })],
-    [createEvalCaseResult({
-      id: selectedCases[0].id,
-      success: false,
-      assertions: [
-        { name: "final-answer-correct", pass: false },
-        { name: "step-count-bounded", pass: true },
-      ],
-    })],
+    [
+      createEvalCaseResult({
+        id: selectedCases[0].id,
+        success: true,
+        assertions: [
+          { name: "final-answer-correct", pass: true },
+          { name: "step-count-bounded", pass: false },
+        ],
+      }),
+    ],
+    [
+      createEvalCaseResult({
+        id: selectedCases[0].id,
+        success: false,
+        assertions: [
+          { name: "final-answer-correct", pass: false },
+          { name: "step-count-bounded", pass: true },
+        ],
+      }),
+    ],
   ];
 
   const statsResult = aggregateEvalStats(
@@ -64,13 +70,13 @@ Deno.test("aggregateEvalStats computes case and assertion pass rates across tria
     0.5,
   );
 
-  assertEquals(statsResult.trialCount, 2);
-  assertEquals(statsResult.success, true);
-  assertEquals(statsResult.casePassRates[0].passCount, 1);
-  assertEquals(statsResult.casePassRates[0].passRate, 0.5);
+  expect(statsResult.trialCount).toBe(2);
+  expect(statsResult.success).toBe(true);
+  expect(statsResult.casePassRates[0].passCount).toBe(1);
+  expect(statsResult.casePassRates[0].passRate).toBe(0.5);
 });
 
-Deno.test("synthesizeStatsFromSuite mirrors a single successful suite result", () => {
+test("synthesizeStatsFromSuite mirrors a single successful suite result", () => {
   const suiteResult: EvalSuiteResult = {
     providerId: "google",
     modelId: "gemini-3.1-flash-lite",
@@ -87,47 +93,51 @@ Deno.test("synthesizeStatsFromSuite mirrors a single successful suite result", (
   };
 
   const statsResult = synthesizeStatsFromSuite(suiteResult, 1);
-  assertEquals(statsResult.trialCount, 1);
-  assertEquals(statsResult.casePassRates[0].passRate, 1);
+  expect(statsResult.trialCount).toBe(1);
+  expect(statsResult.casePassRates[0].passRate).toBe(1);
 });
 
-Deno.test("buildCompareResult records the first tool config as baseline", () => {
+test("buildCompareResult records the first tool config as baseline", () => {
   const selectedCases = evalCases.slice(0, 1);
   const statsResults = [
     aggregateEvalStats(
       selectedCases,
-      [[createEvalCaseResult({
-        id: selectedCases[0].id,
-        success: true,
-        assertions: [{ name: "final-answer-correct", pass: true }],
-      })]],
+      [
+        [
+          createEvalCaseResult({
+            id: selectedCases[0].id,
+            success: true,
+            assertions: [{ name: "final-answer-correct", pass: true }],
+          }),
+        ],
+      ],
       "google",
       "gemini-3.1-flash-lite",
       "baseline",
     ),
     aggregateEvalStats(
       selectedCases,
-      [[createEvalCaseResult({
-        id: selectedCases[0].id,
-        success: false,
-        assertions: [{ name: "final-answer-correct", pass: false }],
-      })]],
+      [
+        [
+          createEvalCaseResult({
+            id: selectedCases[0].id,
+            success: false,
+            assertions: [{ name: "final-answer-correct", pass: false }],
+          }),
+        ],
+      ],
       "google",
       "gemini-3.1-flash-lite",
       "strict-eval",
     ),
   ];
 
-  const compareResult = buildCompareResult(
-    selectedCases,
-    statsResults,
-    {
-      providerId: "google",
-      modelId: "gemini-3.1-flash-lite",
-      trialCount: 1,
-    },
-  );
+  const compareResult = buildCompareResult(selectedCases, statsResults, {
+    providerId: "google",
+    modelId: "gemini-3.1-flash-lite",
+    trialCount: 1,
+  });
 
-  assertEquals(compareResult.baselineToolConfigId, "baseline");
-  assertEquals(compareResult.toolConfigIds, ["baseline", "strict-eval"]);
+  expect(compareResult.baselineToolConfigId).toBe("baseline");
+  expect(compareResult.toolConfigIds).toEqual(["baseline", "strict-eval"]);
 });

@@ -1,38 +1,33 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import { expect, test } from "bun:test";
 import { compileEvalPrompt, resolveToolConfig } from "@/tool-configs/index.ts";
 
-Deno.test("resolveToolConfig returns the baseline config", () => {
+test("resolveToolConfig returns the baseline config", () => {
   const toolConfig = resolveToolConfig("baseline");
 
-  assertEquals(toolConfig.discoveryName, "searchWorld");
-  assertEquals(toolConfig.queryName, "executeSparql");
-  assertEquals(toolConfig.requiredToolNames, ["searchWorld", "executeSparql"]);
+  expect(toolConfig.discoveryName).toBe("searchWorld");
+  expect(toolConfig.queryName).toBe("executeSparql");
+  expect(toolConfig.requiredToolNames).toEqual([
+    "searchWorld",
+    "executeSparql",
+  ]);
 });
 
-Deno.test("resolveToolConfig rejects unknown configs", () => {
-  assertThrows(
-    () => resolveToolConfig("unknown"),
-    Error,
-    "Unknown tool config",
-  );
+test("resolveToolConfig rejects unknown configs", () => {
+  expect(() => resolveToolConfig("unknown")).toThrow("Unknown tool config");
 });
 
-Deno.test("compileEvalPrompt replaces semantic tool placeholders", () => {
+test("compileEvalPrompt replaces semantic tool placeholders", () => {
   const baselineConfig = resolveToolConfig("baseline");
 
-  assertEquals(
+  expect(
     compileEvalPrompt("Use {{discovery}} then {{query}}.", baselineConfig),
-    "Use searchWorld then executeSparql.",
-  );
+  ).toBe("Use searchWorld then executeSparql.");
 });
 
-Deno.test("strict-eval config has system prompt additions", () => {
+test("strict-eval config has system prompt additions", () => {
   const toolConfig = resolveToolConfig("strict-eval");
 
-  assertEquals(toolConfig.id, "strict-eval");
-  assertEquals(typeof toolConfig.systemPromptAdditions, "string");
-  assertEquals(
-    toolConfig.systemPromptAdditions!.includes("Never exceed"),
-    true,
-  );
+  expect(toolConfig.id).toBe("strict-eval");
+  expect(typeof toolConfig.systemPromptAdditions).toBe("string");
+  expect(toolConfig.systemPromptAdditions?.includes("Never exceed")).toBe(true);
 });

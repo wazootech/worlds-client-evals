@@ -1,29 +1,25 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import { expect, test } from "bun:test";
 import { evalCases } from "@/cases/index.ts";
 import { parseCliOptions, selectEvalCases } from "@/cli/run.ts";
 
-Deno.test("parseCliOptions rejects removed golden flags", () => {
-  assertThrows(
-    () => parseCliOptions(["--check-goldens"]),
-    Error,
+test("parseCliOptions rejects removed golden flags", () => {
+  expect(() => parseCliOptions(["--check-goldens"])).toThrow(
     "Unsupported argument",
   );
-  assertThrows(
-    () => parseCliOptions(["--update-goldens"]),
-    Error,
+  expect(() => parseCliOptions(["--update-goldens"])).toThrow(
     "Unsupported argument",
   );
 });
 
-Deno.test("parseCliOptions compiles filter regex from raw string", () => {
+test("parseCliOptions compiles filter regex from raw string", () => {
   const cliOptions = parseCliOptions(["--filter", "happy-path"]);
   const selectedEvalCases = selectEvalCases(evalCases, cliOptions);
 
-  assertEquals(selectedEvalCases.length, 1);
-  assertEquals(selectedEvalCases[0]?.id, "happy-path-search-then-sparql");
+  expect(selectedEvalCases.length).toBe(1);
+  expect(selectedEvalCases[0]?.id).toBe("happy-path-search-then-sparql");
 });
 
-Deno.test("parseCliOptions reads tool config and compare flags", () => {
+test("parseCliOptions reads tool config and compare flags", () => {
   const cliOptions = parseCliOptions([
     "--tool-config",
     "baseline",
@@ -31,17 +27,12 @@ Deno.test("parseCliOptions reads tool config and compare flags", () => {
     "baseline,strict-eval",
   ]);
 
-  assertEquals(cliOptions.toolConfigId, "baseline");
-  assertEquals(cliOptions.compareToolConfigIds, [
-    "baseline",
-    "strict-eval",
-  ]);
+  expect(cliOptions.toolConfigId).toBe("baseline");
+  expect(cliOptions.compareToolConfigIds).toEqual(["baseline", "strict-eval"]);
 });
 
-Deno.test("parseCliOptions rejects duplicate compare ids", () => {
-  assertThrows(
-    () => parseCliOptions(["--compare", "baseline,baseline"]),
-    Error,
+test("parseCliOptions rejects duplicate compare ids", () => {
+  expect(() => parseCliOptions(["--compare", "baseline,baseline"])).toThrow(
     "must be unique",
   );
 });

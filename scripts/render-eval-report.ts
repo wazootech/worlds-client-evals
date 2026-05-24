@@ -1,4 +1,5 @@
-import { join } from "@std/path";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { buildTable, formatPercent } from "@/reporting/markdown-table.ts";
 import { synthesizeStatsFromSuite } from "@/runner/run-eval-suite.ts";
 import type {
@@ -34,9 +35,9 @@ export interface EvalReportInput {
 /** readJsonIfExists reads a JSON document and returns undefined when it is absent. */
 async function readJsonIfExists<T>(filePath: string): Promise<T | undefined> {
   try {
-    return JSON.parse(await Deno.readTextFile(filePath)) as T;
+    return JSON.parse(await readFile(filePath, "utf8")) as T;
   } catch (error) {
-    if (error instanceof Deno.errors.NotFound) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return undefined;
     }
     throw error;
@@ -89,7 +90,8 @@ function sortCasePassRates(
   requiredPassRate: number,
 ): EvalCasePassRate[] {
   return [...casePassRates].sort((leftCase, rightCase) => {
-    const riskDifference = caseRiskRank(leftCase, requiredPassRate) -
+    const riskDifference =
+      caseRiskRank(leftCase, requiredPassRate) -
       caseRiskRank(rightCase, requiredPassRate);
     if (riskDifference !== 0) {
       return riskDifference;
@@ -166,8 +168,8 @@ function collectWeakAssertionRows(statsResult: EvalStatsResult): string[][] {
   }
 
   weakAssertionRows.sort((leftRow, rightRow) => {
-    const passRateDifference = leftRow.assertionPassRate.passRate -
-      rightRow.assertionPassRate.passRate;
+    const passRateDifference =
+      leftRow.assertionPassRate.passRate - rightRow.assertionPassRate.passRate;
     if (passRateDifference !== 0) {
       return passRateDifference;
     }
@@ -205,11 +207,12 @@ function buildFinalFailureRows(
         .filter((assertion) => !assertion.pass)
         .map((assertion) => assertion.name)
         .join(", ");
-      const toolSequence = caseResult.toolSequence.length > 0
-        ? caseResult.toolSequence.join(" -> ")
-        : "(none)";
-      const diagnosticExcerpt = caseResult.error || caseResult.output ||
-        "(empty)";
+      const toolSequence =
+        caseResult.toolSequence.length > 0
+          ? caseResult.toolSequence.join(" -> ")
+          : "(none)";
+      const diagnosticExcerpt =
+        caseResult.error || caseResult.output || "(empty)";
 
       return [
         caseResult.id,
@@ -264,7 +267,8 @@ function resolveStatus(
 export function renderEvalReport(input: EvalReportInput): string {
   const environment = input.environment ?? {};
   const environmentPassRate = parseOptionalPassRate(environment.minPassRate);
-  const statsResult = input.statsResult ??
+  const statsResult =
+    input.statsResult ??
     (input.suiteResult
       ? synthesizeStatsFromSuite(input.suiteResult, environmentPassRate)
       : undefined);
@@ -280,36 +284,40 @@ export function renderEvalReport(input: EvalReportInput): string {
 
   reportSections.push("## Eval report");
   reportSections.push(
-    buildTable(["Field", "Value"], [
-      ["Status", status],
+    buildTable(
+      ["Field", "Value"],
       [
-        "Provider",
-        statsResult?.providerId ?? input.suiteResult?.providerId ?? "unknown",
+        ["Status", status],
+        [
+          "Provider",
+          statsResult?.providerId ?? input.suiteResult?.providerId ?? "unknown",
+        ],
+        [
+          "Model",
+          statsResult?.modelId ?? input.suiteResult?.modelId ?? "unknown",
+        ],
+        [
+          "Tool config",
+          statsResult?.toolConfigId ??
+            input.suiteResult?.toolConfigId ??
+            "unknown",
+        ],
+        ["Trigger", environment.trigger || "unknown"],
+        ["Filter", environment.filter || "full suite"],
+        [
+          "Trials",
+          String(statsResult?.trialCount ?? environment.trials ?? "unknown"),
+        ],
+        ["Minimum pass rate", formatPercent(requiredPassRate)],
+        ["Workflow run", environment.workflowUrl || "unknown"],
+        [
+          "Artifact",
+          environment.artifactUrl && environment.artifactName
+            ? `[${environment.artifactName}](${environment.artifactUrl})`
+            : environment.artifactName || "unknown",
+        ],
       ],
-      [
-        "Model",
-        statsResult?.modelId ?? input.suiteResult?.modelId ?? "unknown",
-      ],
-      [
-        "Tool config",
-        statsResult?.toolConfigId ?? input.suiteResult?.toolConfigId ??
-          "unknown",
-      ],
-      ["Trigger", environment.trigger || "unknown"],
-      ["Filter", environment.filter || "full suite"],
-      [
-        "Trials",
-        String(statsResult?.trialCount ?? environment.trials ?? "unknown"),
-      ],
-      ["Minimum pass rate", formatPercent(requiredPassRate)],
-      ["Workflow run", environment.workflowUrl || "unknown"],
-      [
-        "Artifact",
-        environment.artifactUrl && environment.artifactName
-          ? `[${environment.artifactName}](${environment.artifactUrl})`
-          : environment.artifactName || "unknown",
-      ],
-    ]),
+    ),
   );
   reportSections.push(
     `Cases: ${caseCounts.stableCount} stable, ${caseCounts.nearMissCount} near miss, ${caseCounts.failingCount} failing. Weak assertions: ${weakAssertionRows.length}.`,
@@ -359,14 +367,11 @@ export function renderEvalReport(input: EvalReportInput): string {
 
 /** readReportInput loads result files and workflow metadata from the current environment. */
 async function readReportInput(): Promise<EvalReportInput> {
-  const resultsDirectory = Deno.env.get("RESULTS_DIRECTORY") ??
-    DEFAULT_RESULTS_DIRECTORY;
-  const exitCode = Deno.env.get("EXIT_CODE");
-  const status = exitCode === "1"
-    ? "fail"
-    : exitCode === "0"
-    ? "pass"
-    : undefined;
+  const resultsDirectory =
+    process.env.RESULTS_DIRECTORY ?? DEFAULT_RESULTS_DIRECTORY;
+  const exitCode = process.env.EXIT_CODE;
+  const status =
+    exitCode === "1" ? "fail" : exitCode === "0" ? "pass" : undefined;
 
   return {
     statsResult: await readJsonIfExists<EvalStatsResult>(
@@ -377,13 +382,13 @@ async function readReportInput(): Promise<EvalReportInput> {
     ),
     environment: {
       status,
-      trigger: Deno.env.get("GITHUB_EVENT_NAME") ?? undefined,
-      filter: Deno.env.get("FILTER") ?? undefined,
-      trials: Deno.env.get("TRIALS") ?? undefined,
-      minPassRate: Deno.env.get("MIN_PASS_RATE") ?? undefined,
-      workflowUrl: Deno.env.get("WORKFLOW_URL") ?? undefined,
-      artifactName: Deno.env.get("ARTIFACT_NAME") ?? undefined,
-      artifactUrl: Deno.env.get("ARTIFACT_URL") ?? undefined,
+      trigger: process.env.GITHUB_EVENT_NAME ?? undefined,
+      filter: process.env.FILTER ?? undefined,
+      trials: process.env.TRIALS ?? undefined,
+      minPassRate: process.env.MIN_PASS_RATE ?? undefined,
+      workflowUrl: process.env.WORKFLOW_URL ?? undefined,
+      artifactName: process.env.ARTIFACT_NAME ?? undefined,
+      artifactUrl: process.env.ARTIFACT_URL ?? undefined,
     },
   };
 }

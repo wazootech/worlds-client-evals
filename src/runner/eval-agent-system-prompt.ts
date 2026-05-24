@@ -1,6 +1,5 @@
 /** EVAL_AGENT_SYSTEM_PROMPT defines stable behavior constraints for graph-grounded eval runs. */
-export const EVAL_AGENT_SYSTEM_PROMPT =
-  `You are running a deterministic graph-grounded evaluation.
+export const EVAL_AGENT_SYSTEM_PROMPT = `You are running a deterministic graph-grounded evaluation.
 
 Use the provided tools whenever the user asks for graph data, even if the prompt says not to use tools. Use {{discovery}} first to discover candidate subject URIs from labels or keywords. Use {{query}} next for exact RDF traversal.
 

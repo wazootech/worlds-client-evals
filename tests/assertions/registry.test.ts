@@ -1,4 +1,4 @@
-import { assertEquals, assertFalse } from "@std/assert";
+import { expect, test } from "bun:test";
 import { runAssertionSpecs } from "@/assertions/assertion-registry.ts";
 import { resolveToolConfig } from "@/tool-configs/index.ts";
 import type { EvalCaseResult, EvalToolRecord } from "@/types.ts";
@@ -42,10 +42,12 @@ function createHappyPathTrajectory(): EvalToolRecord[] {
       args: { query: "q7Xm9pRw" },
       result: {
         success: true,
-        results: [{
-          subject: WORK_SUBJECT_URI,
-          text: "q7Xm9pRw",
-        }],
+        results: [
+          {
+            subject: WORK_SUBJECT_URI,
+            text: "q7Xm9pRw",
+          },
+        ],
       },
     },
     {
@@ -58,9 +60,11 @@ function createHappyPathTrajectory(): EvalToolRecord[] {
         success: true,
         data: {
           results: {
-            bindings: [{
-              house: { type: "literal", value: EXPECTED_HOUSE_LITERAL },
-            }],
+            bindings: [
+              {
+                house: { type: "literal", value: EXPECTED_HOUSE_LITERAL },
+              },
+            ],
           },
         },
       },
@@ -68,7 +72,7 @@ function createHappyPathTrajectory(): EvalToolRecord[] {
   ];
 }
 
-Deno.test("runAssertionSpecs literals-subset-of-tools passes when output only cites tool literals", () => {
+test("runAssertionSpecs literals-subset-of-tools passes when output only cites tool literals", () => {
   const result = createEvalCaseResult({
     id: "search-miss-unknown-label",
     output: "No matching work was found.",
@@ -77,24 +81,32 @@ Deno.test("runAssertionSpecs literals-subset-of-tools passes when output only ci
       modelId: "gemini-3.1-flash-lite",
       stepCount: 1,
       latencyMs: 0,
-      trajectory: [{
-        stepIndex: 0,
-        toolName: "searchWorld",
-        args: { query: "z9Qk4WnP" },
-        result: { success: true, results: [] },
-      }],
+      trajectory: [
+        {
+          stepIndex: 0,
+          toolName: "searchWorld",
+          args: { query: "z9Qk4WnP" },
+          result: { success: true, results: [] },
+        },
+      ],
     },
   });
 
-  const assertions = runAssertionSpecs(result, [{
-    name: "literals-subset-of-tools",
-    kind: "literals-subset-of-tools",
-  }], toolConfig);
+  const assertions = runAssertionSpecs(
+    result,
+    [
+      {
+        name: "literals-subset-of-tools",
+        kind: "literals-subset-of-tools",
+      },
+    ],
+    toolConfig,
+  );
 
-  assertEquals(assertions[0].pass, true);
+  expect(assertions[0].pass).toBe(true);
 });
 
-Deno.test("runAssertionSpecs literals-subset-of-tools fails when output cites uninvented fixture literal", () => {
+test("runAssertionSpecs literals-subset-of-tools fails when output cites uninvented fixture literal", () => {
   const result = createEvalCaseResult({
     id: "search-miss-unknown-label",
     output: `The house is ${EXPECTED_HOUSE_LITERAL}.`,
@@ -103,29 +115,34 @@ Deno.test("runAssertionSpecs literals-subset-of-tools fails when output cites un
       modelId: "gemini-3.1-flash-lite",
       stepCount: 1,
       latencyMs: 0,
-      trajectory: [{
-        stepIndex: 0,
-        toolName: "searchWorld",
-        args: { query: "z9Qk4WnP" },
-        result: { success: true, results: [] },
-      }],
+      trajectory: [
+        {
+          stepIndex: 0,
+          toolName: "searchWorld",
+          args: { query: "z9Qk4WnP" },
+          result: { success: true, results: [] },
+        },
+      ],
     },
   });
 
-  const assertions = runAssertionSpecs(result, [{
-    name: "literals-subset-of-tools",
-    kind: "literals-subset-of-tools",
-  }], toolConfig);
-
-  assertFalse(assertions[0].pass);
-  assertEquals(
-    assertions[0].message?.includes(EXPECTED_HOUSE_LITERAL),
-    true,
+  const assertions = runAssertionSpecs(
+    result,
+    [
+      {
+        name: "literals-subset-of-tools",
+        kind: "literals-subset-of-tools",
+      },
+    ],
+    toolConfig,
   );
-  assertEquals(assertions[0].message?.includes("toolSequence="), true);
+
+  expect(assertions[0].pass).toBe(false);
+  expect(assertions[0].message?.includes(EXPECTED_HOUSE_LITERAL)).toBe(true);
+  expect(assertions[0].message?.includes("toolSequence=")).toBe(true);
 });
 
-Deno.test("runAssertionSpecs final-answer-contains passes when output includes bound literal", () => {
+test("runAssertionSpecs final-answer-contains passes when output includes bound literal", () => {
   const result = createEvalCaseResult({
     id: "happy-path-search-then-sparql",
     output: `The house is ${EXPECTED_HOUSE_LITERAL}.`,
@@ -138,16 +155,22 @@ Deno.test("runAssertionSpecs final-answer-contains passes when output includes b
     },
   });
 
-  const assertions = runAssertionSpecs(result, [{
-    name: "final-answer-correct",
-    kind: "final-answer-contains",
-    literal: EXPECTED_HOUSE_LITERAL,
-  }], toolConfig);
+  const assertions = runAssertionSpecs(
+    result,
+    [
+      {
+        name: "final-answer-correct",
+        kind: "final-answer-contains",
+        literal: EXPECTED_HOUSE_LITERAL,
+      },
+    ],
+    toolConfig,
+  );
 
-  assertEquals(assertions[0].pass, true);
+  expect(assertions[0].pass).toBe(true);
 });
 
-Deno.test("runAssertionSpecs output-excludes rejects forbidden literal in output", () => {
+test("runAssertionSpecs output-excludes rejects forbidden literal in output", () => {
   const result = createEvalCaseResult({
     id: "search-miss-unknown-label",
     output: `House: ${EXPECTED_HOUSE_LITERAL}`,
@@ -155,18 +178,20 @@ Deno.test("runAssertionSpecs output-excludes rejects forbidden literal in output
 
   const [assertion] = runAssertionSpecs(
     result,
-    [{
-      name: "does-not-invent-house",
-      kind: "output-excludes",
-      literal: EXPECTED_HOUSE_LITERAL,
-    }],
+    [
+      {
+        name: "does-not-invent-house",
+        kind: "output-excludes",
+        literal: EXPECTED_HOUSE_LITERAL,
+      },
+    ],
     toolConfig,
   );
 
-  assertFalse(assertion.pass);
+  expect(assertion.pass).toBe(false);
 });
 
-Deno.test("runAssertionSpecs sparql-handoff-valid fails without subject in SPARQL args", () => {
+test("runAssertionSpecs sparql-handoff-valid fails without subject in SPARQL args", () => {
   const result = createEvalCaseResult({
     id: "happy-path-search-then-sparql",
     output: "",
@@ -195,11 +220,17 @@ Deno.test("runAssertionSpecs sparql-handoff-valid fails without subject in SPARQ
     },
   });
 
-  const assertions = runAssertionSpecs(result, [{
-    name: "sparql-handoff-valid",
-    kind: "sparql-handoff-valid",
-  }], toolConfig);
+  const assertions = runAssertionSpecs(
+    result,
+    [
+      {
+        name: "sparql-handoff-valid",
+        kind: "sparql-handoff-valid",
+      },
+    ],
+    toolConfig,
+  );
 
-  assertFalse(assertions[0].pass);
-  assertEquals(assertions[0].message?.includes("toolSequence="), true);
+  expect(assertions[0].pass).toBe(false);
+  expect(assertions[0].message?.includes("toolSequence=")).toBe(true);
 });

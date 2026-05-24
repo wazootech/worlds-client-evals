@@ -26,9 +26,9 @@ export function resolveToolConfig(toolConfigId: string): ToolConfig {
   const toolConfig = toolConfigsById[toolConfigId];
   if (!toolConfig) {
     throw new Error(
-      `Unknown tool config: ${toolConfigId}. Available configs: ${
-        Object.keys(toolConfigsById).join(", ")
-      }`,
+      `Unknown tool config: ${toolConfigId}. Available configs: ${Object.keys(
+        toolConfigsById,
+      ).join(", ")}`,
     );
   }
   return toolConfig;

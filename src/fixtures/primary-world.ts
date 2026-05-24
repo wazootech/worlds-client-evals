@@ -29,8 +29,7 @@ export const EXPECTED_HOUSE_LITERAL = "pZ3kN8vQ";
 export const DISTRACTOR_WORK_SUBJECT_URI = `${GENID_BASE}1d6a9f3e7b2c4058`;
 
 /** DISTRACTOR_PROTAGONIST_SUBJECT_URI is the subject IRI for the distractor protagonist. */
-export const DISTRACTOR_PROTAGONIST_SUBJECT_URI =
-  `${GENID_BASE}6e0f1a2b3c4d5e6f`;
+export const DISTRACTOR_PROTAGONIST_SUBJECT_URI = `${GENID_BASE}6e0f1a2b3c4d5e6f`;
 
 /** DISTRACTOR_WORK_SEARCH_LABEL is the opaque rdfs:label for the distractor work entity. */
 export const DISTRACTOR_WORK_SEARCH_LABEL = "r5Hv2KjW";

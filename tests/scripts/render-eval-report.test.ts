@@ -1,8 +1,8 @@
-import { assertStringIncludes } from "@std/assert";
+import { expect, test } from "bun:test";
 import { renderEvalReport } from "../../scripts/render-eval-report.ts";
 import type { EvalStatsResult, EvalSuiteResult } from "@/types.ts";
 
-Deno.test("renderEvalReport surfaces regressions and near misses", () => {
+test("renderEvalReport surfaces regressions and near misses", () => {
   const statsResult: EvalStatsResult = {
     providerId: "google",
     modelId: "gemini-3.1-flash-lite",
@@ -25,12 +25,14 @@ Deno.test("renderEvalReport surfaces regressions and near misses", () => {
         passCount: 9,
         trialCount: 10,
         passRate: 0.9,
-        assertionPassRates: [{
-          name: "tool-sequence",
-          passCount: 9,
-          trialCount: 10,
-          passRate: 0.9,
-        }],
+        assertionPassRates: [
+          {
+            name: "tool-sequence",
+            passCount: 9,
+            trialCount: 10,
+            passRate: 0.9,
+          },
+        ],
       },
       {
         id: "failing-case",
@@ -38,33 +40,33 @@ Deno.test("renderEvalReport surfaces regressions and near misses", () => {
         passCount: 6,
         trialCount: 10,
         passRate: 0.6,
-        assertionPassRates: [{
-          name: "final-answer",
-          passCount: 6,
-          trialCount: 10,
-          passRate: 0.6,
-        }],
+        assertionPassRates: [
+          {
+            name: "final-answer",
+            passCount: 6,
+            trialCount: 10,
+            passRate: 0.6,
+          },
+        ],
       },
     ],
   };
 
   const report = renderEvalReport({ statsResult });
 
-  assertStringIncludes(
-    report,
+  expect(report).toContain(
     "Cases: 1 stable, 1 near miss, 1 failing. Weak assertions: 2.",
   );
-  assertStringIncludes(report, "failing-case<br>Failing case | FAIL | 6/10");
-  assertStringIncludes(
-    report,
+  expect(report).toContain("failing-case<br>Failing case | FAIL | 6/10");
+  expect(report).toContain(
     "near-miss-case<br>Near miss case | NEAR MISS | 9/10",
   );
-  assertStringIncludes(report, "below threshold by 10.0 pts");
-  assertStringIncludes(report, "near miss: 1 failed trial(s)");
-  assertStringIncludes(report, "## Weak assertions");
+  expect(report).toContain("below threshold by 10.0 pts");
+  expect(report).toContain("near miss: 1 failed trial(s)");
+  expect(report).toContain("## Weak assertions");
 });
 
-Deno.test("renderEvalReport falls back to latest suite results", () => {
+test("renderEvalReport falls back to latest suite results", () => {
   const suiteResult: EvalSuiteResult = {
     providerId: "google",
     modelId: "gemini-3.1-flash-lite",
@@ -96,8 +98,8 @@ Deno.test("renderEvalReport falls back to latest suite results", () => {
     environment: { minPassRate: "1", artifactName: "eval-results" },
   });
 
-  assertStringIncludes(report, "single-trial-failure<br>Single trial failure");
-  assertStringIncludes(report, "## Final-trial failures");
-  assertStringIncludes(report, "searchWorld");
-  assertStringIncludes(report, "model output with \\| pipe");
+  expect(report).toContain("single-trial-failure<br>Single trial failure");
+  expect(report).toContain("## Final-trial failures");
+  expect(report).toContain("searchWorld");
+  expect(report).toContain("model output with \\| pipe");
 });

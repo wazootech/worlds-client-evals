@@ -18,8 +18,8 @@ export async function runEvalCase(
 ): Promise<EvalCaseResult> {
   const providerId = options?.providerId ?? "google";
   const modelId = options?.modelId ?? "gemini-3.1-flash-lite";
-  const toolConfig = options?.toolConfig ??
-    resolveToolConfig(defaultToolConfigId);
+  const toolConfig =
+    options?.toolConfig ?? resolveToolConfig(defaultToolConfigId);
   const prompt = compileEvalPrompt(
     testCase.promptTemplate ?? testCase.prompt ?? "",
     toolConfig,
@@ -68,10 +68,10 @@ export async function runEvalCase(
         latencyMs,
         tokenUsage: result.usage
           ? {
-            prompt: result.usage.inputTokens,
-            completion: result.usage.outputTokens,
-            total: result.usage.totalTokens,
-          }
+              prompt: result.usage.inputTokens,
+              completion: result.usage.outputTokens,
+              total: result.usage.totalTokens,
+            }
           : undefined,
         trajectory: buildTrajectory(result.steps),
       },

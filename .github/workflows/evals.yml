@@ -64,8 +64,8 @@ jobs:
             "src/"
             "tests/"
             "scripts/"
-            "deno.json"
-            "deno.lock"
+            "package.json"
+            "bun.lock"
             ".github/workflows/"
             "vendor/"
           )
@@ -90,10 +90,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - run: deno install --allow-scripts
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
 
       - name: Run credentialed agent evals
         id: eval
@@ -141,7 +139,7 @@ jobs:
           fi
 
           set +e
-          deno run -A --env ./src/cli/run.ts "${ARGS[@]}"
+          bun --env-file=.env run src/cli/run.ts "${ARGS[@]}"
           EXIT_CODE=$?
           set -e
           echo "exit_code=${EXIT_CODE}" >> "$GITHUB_OUTPUT"
@@ -172,9 +170,9 @@ jobs:
           WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           if [ "${{ steps.eval.outputs.is_compare }}" = "true" ]; then
-            deno run --allow-read --allow-env ./scripts/render-compare-report.ts > eval-report.md
+            bun run scripts/render-compare-report.ts > eval-report.md
           else
-            deno run --allow-read --allow-env ./scripts/render-eval-report.ts > eval-report.md
+            bun run scripts/render-eval-report.ts > eval-report.md
           fi
 
       - name: Publish eval report discussion

@@ -16,18 +16,21 @@ guard enforcement through deterministic code checks rather than LLM judging.
 ## Quickstart
 
 ```bash
-# Install dependencies (allow-scripts for @worlds/client tensorflow/npm lifecycle hooks)
-deno install --allow-scripts
+# Install dependencies (Bun runs npm lifecycle scripts for @worlds/client TensorFlow hooks)
+bun install
 
 # Run unit tests (no API key needed)
-deno task test
+bun run test
 
-# Run live evals (requires GOOGLE_GENERATIVE_AI_API_KEY)
-deno task evals
+# Run live evals (requires GOOGLE_GENERATIVE_AI_API_KEY in .env)
+bun run evals
 
 # Smoke one case after assertion changes
-deno task evals --filter search-miss-unknown-label
+bun run evals --filter search-miss-unknown-label
 ```
+
+Node.js users can run the CLI with `bunx tsx src/cli/run.ts` (requires a local
+`.env` or exported environment variables).
 
 ## Environment
 
@@ -45,7 +48,7 @@ API key.
 | Flag                 | Description                                                                           |
 | :------------------- | :------------------------------------------------------------------------------------ |
 | `--list`             | Print matching case ids and descriptions, then exit                                   |
-| `--filter <pattern>` | Deno-test-like filter on case `id` or `description` (literal or `/regex/i`)           |
+| `--filter <pattern>` | Test-runner-like filter on case `id` or `description` (literal or `/regex/i`)           |
 | `--permit-no-files`  | Exit 0 when the filter matches no cases (default: error)                              |
 | `--trials <N>`       | Run each selected case `N` times and aggregate pass rates (default `1`)               |
 | `--min-pass-rate`    | With `--trials`, require each case pass rate ≥ threshold (0–1); default requires 100% |
@@ -62,10 +65,10 @@ API key.
 
 ## CI
 
-| Layer              | Command           | API key | When                                                                                                             |
-| :----------------- | :---------------- | :------ | :--------------------------------------------------------------------------------------------------------------- |
-| Unit tests         | `deno task ci`    | No      | Every push and pull request (GitHub `CI` workflow)                                                               |
-| Live agent evals   | `deno task evals` | Yes     | Local dev; GitHub `Agent evals` workflow (manual dispatch)                                                       |
+| Layer              | Command          | API key | When                                                                                                             |
+| :----------------- | :--------------- | :------ | :--------------------------------------------------------------------------------------------------------------- |
+| Unit tests         | `bun run ci`     | No      | Every push and pull request (GitHub `CI` workflow)                                                               |
+| Live agent evals   | `bun run evals`  | Yes     | Local dev; GitHub `Agent evals` workflow (manual dispatch)                                                       |
 | Scheduled baseline | `--trials 10`     | Yes     | Weekly (Mon 06:00 UTC), skipped if no harness commits in 7 days; uploads `results/*.json` as a workflow artifact |
 | Manual dispatch    | configurable      | Yes     | Same workflow artifact flow as the scheduled baseline                                                            |
 
@@ -124,14 +127,14 @@ without rewriting the scenario catalog.
 To test one config:
 
 ```sh
-deno task evals --tool-config baseline --trials 10 --min-pass-rate 0.7
+bun run evals --tool-config baseline --trials 10 --min-pass-rate 0.7
 ```
 
 To compare configs after registering another config in `src/tool-configs/`:
 
 ```sh
-deno task evals --compare baseline,experimental --trials 10 --min-pass-rate 0.7
-deno run --allow-read --allow-env ./scripts/render-compare-report.ts
+bun run evals --compare baseline,experimental --trials 10 --min-pass-rate 0.7
+bun run scripts/render-compare-report.ts
 ```
 
 Comparison runs write per-config outputs plus a side-by-side

@@ -13,14 +13,12 @@ export function applyAssertions(
   toolConfig: ToolConfig = resolveToolConfig(defaultToolConfigId),
 ): EvalCaseResult {
   if (specs.length === 0) {
-    throw new Error(
-      `No assertion specs provided for case id: ${result.id}`,
-    );
+    throw new Error(`No assertion specs provided for case id: ${result.id}`);
   }
 
   const assertions = runAssertionSpecs(result, specs, toolConfig);
-  const success = result.runCompleted &&
-    assertions.every((assertion) => assertion.pass);
+  const success =
+    result.runCompleted && assertions.every((assertion) => assertion.pass);
   return {
     ...result,
     success,
