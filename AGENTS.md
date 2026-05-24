@@ -168,6 +168,11 @@ green-passing integration pipeline runs:
   `jsonld-context-parser` resolution errors in the local test suite, ensure the
   vendor directory and `links` config are intact.
 
+- **npm lifecycle scripts:** `@worlds/client` pulls TensorFlow-related npm
+  packages with optional lifecycle scripts. After `deno update`, run
+  `deno install --allow-scripts` (CI does this before `deno task ci` and live
+  evals) so installs match local development.
+
 - **Test-driven execution boundaries:** Always run local tests with
   `deno task ci` or `deno test --allow-all --unstable-kv` to verify that all
   code compiles, formats, and passes operational invariants without errors prior

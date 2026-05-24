@@ -16,8 +16,8 @@ guard enforcement through deterministic code checks rather than LLM judging.
 ## Quickstart
 
 ```bash
-# Install dependencies
-deno install
+# Install dependencies (allow-scripts for @worlds/client tensorflow/npm lifecycle hooks)
+deno install --allow-scripts
 
 # Run unit tests (no API key needed)
 deno task test

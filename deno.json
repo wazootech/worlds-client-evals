@@ -2,15 +2,15 @@
   "nodeModulesDir": "auto",
   "imports": {
     "@/": "./src/",
-    "@ai-sdk/google": "npm:@ai-sdk/google@^3.0.78",
-    "@std/cli/parse-args": "jsr:@std/cli@^1.0.22/parse-args",
+    "@ai-sdk/google": "npm:@ai-sdk/google@^3.0.79",
+    "@std/cli/parse-args": "jsr:@std/cli@^1.0.29/parse-args",
     "@comunica/query-sparql-rdfjs-lite": "npm:@comunica/query-sparql-rdfjs-lite@^5.2.2",
     "@libsql/client": "npm:@libsql/client@^0.17.3",
     "@std/assert": "jsr:@std/assert@^1.0.19",
     "@std/fs": "jsr:@std/fs@^1.0.23",
     "@std/path": "jsr:@std/path@^1.1.4",
-    "@worlds/client": "jsr:@worlds/client@^0.0.13",
-    "ai": "npm:ai@^6.0.188",
+    "@worlds/client": "jsr:@worlds/client@^0.0.14",
+    "ai": "npm:ai@^6.0.191",
     "zod": "npm:zod@^4.4.3"
   },
   "links": [

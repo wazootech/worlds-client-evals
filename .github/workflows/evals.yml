@@ -93,6 +93,7 @@ jobs:
       - uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - run: deno install --allow-scripts
 
       - name: Run credentialed agent evals
         id: eval
