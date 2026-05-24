@@ -1,4 +1,4 @@
-import { parseArgs } from "@std/cli/parse-args";
+import { parseArgs as nodeParseArgs } from "node:util";
 import { evalCases } from "@/cases/index.ts";
 import {
   writeCompareResult,
@@ -21,8 +21,8 @@ import type {
   EvalSuiteResult,
 } from "@/types.ts";
 
-const providerId = Deno.env.get("EVAL_PROVIDER_ID") ?? "google";
-const modelId = Deno.env.get("EVAL_MODEL_ID") ?? "gemini-3.1-flash-lite";
+const providerId = process.env.EVAL_PROVIDER_ID ?? "google";
+const modelId = process.env.EVAL_MODEL_ID ?? "gemini-3.1-flash-lite";
 const supportedProviderIds = new Set(["google"]);
 
 interface EvalCliOptions {
@@ -95,43 +95,60 @@ function parsePassRateOption(
   return parsedValue;
 }
 
-/** parseCliOptions reads supported targeting flags from Deno.args. */
+const supportedCliFlags =
+  "--filter <pattern>, --list, --permit-no-files, --trials <N>, --min-pass-rate <0-1>, --tool-config <name>, --compare <a,b>";
+
+/** parseCliOptions reads supported targeting flags from process.argv. */
 export function parseCliOptions(args: string[]): EvalCliOptions {
-  const parsedArgs = parseArgs(args, {
-    boolean: ["list", "permit-no-files"],
-    string: ["filter", "trials", "min-pass-rate", "tool-config", "compare"],
-    unknown: (argument) => {
-      if (argument === "--") {
-        return true;
-      }
-
-      throw new Error(
-        `Unsupported argument: ${argument}. Supported flags: --filter <pattern>, --list, --permit-no-files, --trials <N>, --min-pass-rate <0-1>, --tool-config <name>, --compare <a,b>`,
-      );
-    },
-  });
-
-  if (parsedArgs._.length > 0) {
+  let parsedArgs: Record<string, string | boolean | undefined>;
+  try {
+    const parseResult = nodeParseArgs({
+      args,
+      options: {
+        filter: { type: "string" },
+        list: { type: "boolean", default: false },
+        "permit-no-files": { type: "boolean", default: false },
+        trials: { type: "string" },
+        "min-pass-rate": { type: "string" },
+        "tool-config": { type: "string" },
+        compare: { type: "string" },
+      },
+      strict: true,
+      allowPositionals: false,
+    });
+    parsedArgs = parseResult.values;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const unknownOptionMatch = message.match(/'(--[^']+)'/);
+    const unsupportedArgument =
+      unknownOptionMatch?.[1] ?? message.match(/'([^']+)'/)?.[1] ?? message;
     throw new Error(
-      `Unsupported argument: ${
-        parsedArgs._[0]
-      }. Supported flags: --filter <pattern>, --list, --permit-no-files, --trials <N>, --min-pass-rate <0-1>, --tool-config <name>, --compare <a,b>`,
+      `Unsupported argument: ${unsupportedArgument}. Supported flags: ${supportedCliFlags}`,
     );
   }
 
-  const filter = parsedArgs.filter ? parseFilter(parsedArgs.filter) : undefined;
-  const list = parsedArgs.list;
-  const permitNoFiles = parsedArgs["permit-no-files"];
-  let trialCount = parsedArgs.trials
-    ? parsePositiveIntegerOption("--trials", parsedArgs.trials)
-    : Number.parseInt(Deno.env.get("EVAL_TRIALS") ?? "1", 10);
-  const minPassRate = parsedArgs["min-pass-rate"]
-    ? parsePassRateOption("--min-pass-rate", parsedArgs["min-pass-rate"])
+  const filter = parsedArgs.filter
+    ? parseFilter(String(parsedArgs.filter))
     : undefined;
-  const toolConfigId = parsedArgs["tool-config"] ?? defaultToolConfigId;
+  const list = parsedArgs.list === true;
+  const permitNoFiles = parsedArgs["permit-no-files"] === true;
+  let trialCount = parsedArgs.trials
+    ? parsePositiveIntegerOption("--trials", String(parsedArgs.trials))
+    : Number.parseInt(process.env.EVAL_TRIALS ?? "1", 10);
+  const minPassRate = parsedArgs["min-pass-rate"]
+    ? parsePassRateOption(
+        "--min-pass-rate",
+        String(parsedArgs["min-pass-rate"]),
+      )
+    : undefined;
+  const toolConfigId = parsedArgs["tool-config"]
+    ? String(parsedArgs["tool-config"])
+    : defaultToolConfigId;
   const compareToolConfigIds = parsedArgs.compare
-    ? parsedArgs.compare.split(",").map((toolConfigId) => toolConfigId.trim())
-      .filter((toolConfigId) => toolConfigId.length > 0)
+    ? String(parsedArgs.compare)
+        .split(",")
+        .map((toolConfigId) => toolConfigId.trim())
+        .filter((toolConfigId) => toolConfigId.length > 0)
     : undefined;
 
   if (compareToolConfigIds && compareToolConfigIds.length < 2) {
@@ -168,9 +185,10 @@ export function selectEvalCases(
     return cases;
   }
 
-  return cases.filter((testCase) =>
-    options.filter?.test(testCase.id) ||
-    options.filter?.test(testCase.description)
+  return cases.filter(
+    (testCase) =>
+      options.filter?.test(testCase.id) ||
+      options.filter?.test(testCase.description),
   );
 }
 
@@ -223,11 +241,9 @@ function printSummary(result: EvalSuiteResult): void {
   console.log("");
 
   for (const testResult of result.results) {
-    const tools = testResult.metadata.trajectory.map((record) =>
-      record.toolName
-    ).join(
-      ", ",
-    );
+    const tools = testResult.metadata.trajectory
+      .map((record) => record.toolName)
+      .join(", ");
     console.log(
       `[${testResult.success ? "PASS" : "FAIL"}] ${testResult.description}`,
     );
@@ -275,19 +291,19 @@ function printCompareSummary(compareResult: EvalCompareResult): void {
 if (import.meta.main) {
   validateProviderId(providerId);
 
-  const cliOptions = parseCliOptions(Deno.args);
+  const cliOptions = parseCliOptions(process.argv.slice(2));
   const selectedEvalCases = selectEvalCases(evalCases, cliOptions);
 
   if (cliOptions.list) {
     printAvailableCases(selectedEvalCases);
-    Deno.exit();
+    process.exit();
   }
 
   if (selectedEvalCases.length === 0) {
     const message = "No eval cases matched the provided filter.";
     if (cliOptions.permitNoFiles) {
       console.log(message);
-      Deno.exit();
+      process.exit();
     }
 
     throw new Error(message);
@@ -308,8 +324,8 @@ if (import.meta.main) {
         console.log(
           `\nRun aborted due to fatal API error: ${runResult.fatalError}`,
         );
-        Deno.exitCode = 2;
-        Deno.exit();
+        process.exitCode = 2;
+        process.exit();
       }
 
       const latestOutputPath = await writeSuiteResult(
@@ -345,9 +361,9 @@ if (import.meta.main) {
     console.log(`Wrote comparison results to ${compareOutputPath}`);
 
     if (compareFailed) {
-      Deno.exitCode = 1;
+      process.exitCode = 1;
     }
-    Deno.exit();
+    process.exit();
   }
 
   const toolConfig = resolveToolConfig(cliOptions.toolConfigId);
@@ -361,8 +377,8 @@ if (import.meta.main) {
     console.log(
       `\nRun aborted due to fatal API error: ${runResult.fatalError}`,
     );
-    Deno.exitCode = 2;
-    Deno.exit();
+    process.exitCode = 2;
+    process.exit();
   }
 
   if (runResult.statsResult) {
@@ -378,9 +394,9 @@ if (import.meta.main) {
 
   if (runResult.statsResult) {
     if (!runResult.statsResult.success) {
-      Deno.exitCode = 1;
+      process.exitCode = 1;
     }
   } else if (!runResult.suiteResult.success) {
-    Deno.exitCode = 1;
+    process.exitCode = 1;
   }
 }

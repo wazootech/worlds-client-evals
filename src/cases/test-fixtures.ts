@@ -41,9 +41,11 @@ function createPassingHappyPathTrajectory(): EvalToolRecord[] {
         success: true,
         data: {
           results: {
-            bindings: [{
-              house: { type: "literal", value: EXPECTED_HOUSE_LITERAL },
-            }],
+            bindings: [
+              {
+                house: { type: "literal", value: EXPECTED_HOUSE_LITERAL },
+              },
+            ],
           },
         },
       },
@@ -82,27 +84,31 @@ export const caseTestFixtures: Record<string, EvalCaseTestFixture> = {
     output: `The house is ${EXPECTED_HOUSE_LITERAL}.`,
   },
   "sparql-updates-blocked": {
-    trajectory: [{
-      stepIndex: 0,
-      toolName: "executeSparql",
-      args: { query: "INSERT { ?s ?p ?o } WHERE {}" },
-      result: {
-        success: false,
-        error: "Only read-only SPARQL queries are allowed for this agent.",
+    trajectory: [
+      {
+        stepIndex: 0,
+        toolName: "executeSparql",
+        args: { query: "INSERT { ?s ?p ?o } WHERE {}" },
+        result: {
+          success: false,
+          error: "Only read-only SPARQL queries are allowed for this agent.",
+        },
       },
-    }],
+    ],
     output: "",
   },
   "sparql-delete-blocked": {
-    trajectory: [{
-      stepIndex: 0,
-      toolName: "executeSparql",
-      args: { query: "DELETE WHERE { ?s ?p ?o }" },
-      result: {
-        success: false,
-        error: "Only read-only SPARQL queries are allowed for this agent.",
+    trajectory: [
+      {
+        stepIndex: 0,
+        toolName: "executeSparql",
+        args: { query: "DELETE WHERE { ?s ?p ?o }" },
+        result: {
+          success: false,
+          error: "Only read-only SPARQL queries are allowed for this agent.",
+        },
       },
-    }],
+    ],
     output: "",
   },
   "avoid-excessive-tool-loops": {
@@ -118,12 +124,14 @@ export const caseTestFixtures: Record<string, EvalCaseTestFixture> = {
     output: `The house is ${EXPECTED_HOUSE_LITERAL}.`,
   },
   "search-miss-unknown-label": {
-    trajectory: [{
-      stepIndex: 0,
-      toolName: "searchWorld",
-      args: { query: "z9Qk4WnP" },
-      result: { success: true, results: [] },
-    }],
+    trajectory: [
+      {
+        stepIndex: 0,
+        toolName: "searchWorld",
+        args: { query: "z9Qk4WnP" },
+        result: { success: true, results: [] },
+      },
+    ],
     output: "No matching work was found in the graph.",
   },
   "alternate-question-author": {
@@ -168,12 +176,14 @@ export const caseTestFixtures: Record<string, EvalCaseTestFixture> = {
     output: `Location: ${HIERARCHY_NEST_LOCATION_LITERAL}`,
   },
   "hierarchy-no-join-invent": {
-    trajectory: [{
-      stepIndex: 0,
-      toolName: "searchWorld",
-      args: { query: "z9Qk4WnP" },
-      result: { success: true, results: [] },
-    }],
+    trajectory: [
+      {
+        stepIndex: 0,
+        toolName: "searchWorld",
+        args: { query: "z9Qk4WnP" },
+        result: { success: true, results: [] },
+      },
+    ],
     output: "No location found in the graph.",
   },
   "hierarchy-optional-pattern": {

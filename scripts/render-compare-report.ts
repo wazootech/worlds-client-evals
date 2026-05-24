@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import {
   buildTable,
   formatDelta,
@@ -13,8 +14,8 @@ function collectAssertionRate(
   assertionPassRates: EvalAssertionPassRate[],
   assertionName: string,
 ): EvalAssertionPassRate | undefined {
-  return assertionPassRates.find((assertionPassRate) =>
-    assertionPassRate.name === assertionName
+  return assertionPassRates.find(
+    (assertionPassRate) => assertionPassRate.name === assertionName,
   );
 }
 
@@ -59,9 +60,9 @@ export function renderCompareReport(compareResult: EvalCompareResult): string {
           .map((assertionPassRate) => {
             const baselineAssertionRate = baselineRate
               ? collectAssertionRate(
-                baselineRate.assertionPassRates,
-                assertionPassRate.name,
-              )
+                  baselineRate.assertionPassRates,
+                  assertionPassRate.name,
+                )
               : undefined;
             return [
               comparison.id,
@@ -87,18 +88,21 @@ export function renderCompareReport(compareResult: EvalCompareResult): string {
   ];
   const sections = [
     "## Tool config comparison",
-    buildTable(["Field", "Value"], [
-      ["Provider", compareResult.providerId],
-      ["Model", compareResult.modelId],
-      ["Trials", String(compareResult.trialCount)],
+    buildTable(
+      ["Field", "Value"],
       [
-        "Minimum pass rate",
-        compareResult.minPassRate === undefined
-          ? "100.0%"
-          : formatPercent(compareResult.minPassRate),
+        ["Provider", compareResult.providerId],
+        ["Model", compareResult.modelId],
+        ["Trials", String(compareResult.trialCount)],
+        [
+          "Minimum pass rate",
+          compareResult.minPassRate === undefined
+            ? "100.0%"
+            : formatPercent(compareResult.minPassRate),
+        ],
+        ["Tool configs", compareResult.toolConfigIds.join(", ")],
       ],
-      ["Tool configs", compareResult.toolConfigIds.join(", ")],
-    ]),
+    ),
     "## Case pass-rate deltas",
     buildTable(headers, caseRows),
   ];
@@ -117,14 +121,14 @@ export function renderCompareReport(compareResult: EvalCompareResult): string {
 }
 
 if (import.meta.main) {
-  const resultsDirectory = Deno.env.get("RESULTS_DIRECTORY") ??
-    DEFAULT_RESULTS_DIRECTORY;
+  const resultsDirectory =
+    process.env.RESULTS_DIRECTORY ?? DEFAULT_RESULTS_DIRECTORY;
   const compareResultPath = await findNewestCompareResultPath(resultsDirectory);
   if (!compareResultPath) {
     throw new Error(`No compare-*.json result found in ${resultsDirectory}`);
   }
   const compareResult = JSON.parse(
-    await Deno.readTextFile(compareResultPath),
+    await readFile(compareResultPath, "utf8"),
   ) as EvalCompareResult;
   console.log(renderCompareReport(compareResult));
 }

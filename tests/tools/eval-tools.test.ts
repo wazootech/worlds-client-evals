@@ -1,4 +1,4 @@
-import { assertEquals, assertFalse } from "@std/assert";
+import { expect, test } from "bun:test";
 import { createEvalTools } from "@/tools/create-eval-tools.ts";
 import { isReadOnlySparqlQuery } from "@/tools/is-read-only-sparql-query.ts";
 import {
@@ -32,36 +32,40 @@ const MUTATING_OR_INVALID_QUERIES = [
 ];
 
 for (const query of READ_ONLY_QUERIES) {
-  Deno.test(`isReadOnlySparqlQuery accepts read-only query: ${query.slice(0, 40)}`, () => {
-    assertEquals(isReadOnlySparqlQuery(query), true);
+  test(`isReadOnlySparqlQuery accepts read-only query: ${query.slice(0, 40)}`, () => {
+    expect(isReadOnlySparqlQuery(query)).toBe(true);
   });
 }
 
 for (const query of MUTATING_OR_INVALID_QUERIES) {
-  Deno.test(`isReadOnlySparqlQuery rejects mutating or invalid query: ${query.slice(0, 40)}`, () => {
-    assertFalse(isReadOnlySparqlQuery(query));
+  test(`isReadOnlySparqlQuery rejects mutating or invalid query: ${query.slice(0, 40)}`, () => {
+    expect(isReadOnlySparqlQuery(query)).toBe(false);
   });
 }
 
-Deno.test("executeSparql runs SELECT queries against the seeded Worlds client", async () => {
+test("executeSparql runs SELECT queries against the seeded Worlds client", async () => {
   const client = await createSeededWorldClient();
   const tools = createEvalTools(client);
-  const result = await tools.executeSparql.execute?.({
-    query:
-      `SELECT ?house WHERE { <${PROTAGONIST_SUBJECT_URI}> <${WAZOO_VOCAB_NAMESPACE}house> ?house . }`,
-  }, {
-    toolCallId: "test-sparql",
-    messages: [],
-  });
+  const result = await tools.executeSparql.execute?.(
+    {
+      query: `SELECT ?house WHERE { <${PROTAGONIST_SUBJECT_URI}> <${WAZOO_VOCAB_NAMESPACE}house> ?house . }`,
+    },
+    {
+      toolCallId: "test-sparql",
+      messages: [],
+    },
+  );
 
-  assertEquals(result, {
+  expect(result).toEqual({
     success: true,
     data: {
       head: { vars: ["house"], link: undefined },
       results: {
-        bindings: [{
-          house: { type: "literal", value: EXPECTED_HOUSE_LITERAL },
-        }],
+        bindings: [
+          {
+            house: { type: "literal", value: EXPECTED_HOUSE_LITERAL },
+          },
+        ],
       },
     },
   });

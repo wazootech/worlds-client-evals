@@ -1,4 +1,4 @@
-import { assertEquals, assertFalse, assertThrows } from "@std/assert";
+import { expect, test } from "bun:test";
 import { applyAssertions } from "@/assertions/apply-assertions.ts";
 import {
   extractSearchSubjects,
@@ -59,9 +59,11 @@ function createPassingHappyPathTrajectory(): EvalToolRecord[] {
         success: true,
         data: {
           results: {
-            bindings: [{
-              house: { type: "literal", value: EXPECTED_HOUSE_LITERAL },
-            }],
+            bindings: [
+              {
+                house: { type: "literal", value: EXPECTED_HOUSE_LITERAL },
+              },
+            ],
           },
         },
       },
@@ -78,14 +80,14 @@ function resolveEvalCase(caseId: string) {
   return evalCase;
 }
 
-Deno.test("evalCases defines non-empty assertion specs for every catalog entry", () => {
+test("evalCases defines non-empty assertion specs for every catalog entry", () => {
   for (const evalCase of evalCases) {
-    assertEquals(evalCase.assertions.length > 0, true);
+    expect(evalCase.assertions.length > 0).toBe(true);
   }
 });
 
 for (const evalCase of evalCases) {
-  Deno.test(`applyAssertions runs declarative specs for ${evalCase.id}`, () => {
+  test(`applyAssertions runs declarative specs for ${evalCase.id}`, () => {
     const { trajectory, output } = resolveCaseTestFixture(evalCase.id);
 
     const result = applyAssertions(
@@ -103,36 +105,32 @@ for (const evalCase of evalCases) {
       evalCase.assertions,
     );
 
-    assertEquals(
-      result.assertions.map((assertion) => assertion.name),
+    expect(result.assertions.map((assertion) => assertion.name)).toEqual(
       evalCase.assertions.map((spec) => spec.name),
     );
-    assertEquals(result.success, true);
+    expect(result.success).toBe(true);
   });
 }
 
-Deno.test("applyAssertions throws when assertion specs are empty", () => {
-  assertThrows(
-    () =>
-      applyAssertions(
-        createEvalCaseResult({
-          id: "unknown-eval-case",
-          metadata: {
-            providerId: "google",
-            modelId: "gemini-3.1-flash-lite",
-            stepCount: 0,
-            latencyMs: 0,
-            trajectory: [],
-          },
-        }),
-        [],
-      ),
-    Error,
-    "No assertion specs provided",
-  );
+test("applyAssertions throws when assertion specs are empty", () => {
+  expect(() =>
+    applyAssertions(
+      createEvalCaseResult({
+        id: "unknown-eval-case",
+        metadata: {
+          providerId: "google",
+          modelId: "gemini-3.1-flash-lite",
+          stepCount: 0,
+          latencyMs: 0,
+          trajectory: [],
+        },
+      }),
+      [],
+    ),
+  ).toThrow("No assertion specs provided");
 });
 
-Deno.test("applyAssertions clears success when a routed assertion fails", () => {
+test("applyAssertions clears success when a routed assertion fails", () => {
   const evalCase = resolveEvalCase("happy-path-search-then-sparql");
   const result = applyAssertions(
     createEvalCaseResult({
@@ -149,15 +147,15 @@ Deno.test("applyAssertions clears success when a routed assertion fails", () => 
     evalCase.assertions,
   );
 
-  assertFalse(result.success);
-  assertFalse(
-    result.assertions.find((assertion) =>
-      assertion.name === "final-answer-correct"
+  expect(result.success).toBe(false);
+  expect(
+    result.assertions.find(
+      (assertion) => assertion.name === "final-answer-correct",
     )?.pass,
-  );
+  ).toBe(false);
 });
 
-Deno.test("extractSearchSubjects collects subject IRIs from searchWorld results", () => {
+test("extractSearchSubjects collects subject IRIs from searchWorld results", () => {
   const subjects = extractSearchSubjects({
     success: true,
     results: [
@@ -167,20 +165,17 @@ Deno.test("extractSearchSubjects collects subject IRIs from searchWorld results"
     ],
   });
 
-  assertEquals(subjects, [
-    WORK_SUBJECT_URI,
-    "https://example.org/other",
-  ]);
+  expect(subjects).toEqual([WORK_SUBJECT_URI, "https://example.org/other"]);
 });
 
-Deno.test("extractSearchSubjects returns empty array for malformed input", () => {
-  assertEquals(extractSearchSubjects(null), []);
-  assertEquals(extractSearchSubjects({}), []);
-  assertEquals(extractSearchSubjects({ results: "not-an-array" }), []);
-  assertEquals(extractSearchSubjects({ results: [{ subject: 42 }] }), []);
+test("extractSearchSubjects returns empty array for malformed input", () => {
+  expect(extractSearchSubjects(null)).toEqual([]);
+  expect(extractSearchSubjects({})).toEqual([]);
+  expect(extractSearchSubjects({ results: "not-an-array" })).toEqual([]);
+  expect(extractSearchSubjects({ results: [{ subject: 42 }] })).toEqual([]);
 });
 
-Deno.test("extractSparqlBindingLiterals collects literal binding values", () => {
+test("extractSparqlBindingLiterals collects literal binding values", () => {
   const literals = extractSparqlBindingLiterals({
     success: true,
     data: {
@@ -201,16 +196,18 @@ Deno.test("extractSparqlBindingLiterals collects literal binding values", () => 
     },
   });
 
-  assertEquals(literals, [EXPECTED_HOUSE_LITERAL, "untagged-literal"]);
+  expect(literals).toEqual([EXPECTED_HOUSE_LITERAL, "untagged-literal"]);
 });
 
-Deno.test("extractSparqlBindingLiterals returns empty array for failed or missing data", () => {
-  assertEquals(extractSparqlBindingLiterals({ success: false }), []);
-  assertEquals(extractSparqlBindingLiterals({ success: true, data: null }), []);
-  assertEquals(extractSparqlBindingLiterals("not-an-object"), []);
+test("extractSparqlBindingLiterals returns empty array for failed or missing data", () => {
+  expect(extractSparqlBindingLiterals({ success: false })).toEqual([]);
+  expect(extractSparqlBindingLiterals({ success: true, data: null })).toEqual(
+    [],
+  );
+  expect(extractSparqlBindingLiterals("not-an-object")).toEqual([]);
 });
 
-Deno.test("applyAssertions search-miss fails when model invents the house literal", () => {
+test("applyAssertions search-miss fails when model invents the house literal", () => {
   const evalCase = resolveEvalCase("search-miss-unknown-label");
   const result = applyAssertions(
     createEvalCaseResult({
@@ -221,31 +218,33 @@ Deno.test("applyAssertions search-miss fails when model invents the house litera
         modelId: "gemini-3.1-flash-lite",
         stepCount: 1,
         latencyMs: 0,
-        trajectory: [{
-          stepIndex: 0,
-          toolName: "searchWorld",
-          args: { query: "z9Qk4WnP" },
-          result: { success: true, results: [] },
-        }],
+        trajectory: [
+          {
+            stepIndex: 0,
+            toolName: "searchWorld",
+            args: { query: "z9Qk4WnP" },
+            result: { success: true, results: [] },
+          },
+        ],
       },
     }),
     evalCase.assertions,
   );
 
-  assertFalse(result.success);
-  assertFalse(
-    result.assertions.find((assertion) =>
-      assertion.name === "does-not-invent-house"
+  expect(result.success).toBe(false);
+  expect(
+    result.assertions.find(
+      (assertion) => assertion.name === "does-not-invent-house",
     )?.pass,
-  );
-  assertFalse(
-    result.assertions.find((assertion) =>
-      assertion.name === "literals-subset-of-tools"
+  ).toBe(false);
+  expect(
+    result.assertions.find(
+      (assertion) => assertion.name === "literals-subset-of-tools",
     )?.pass,
-  );
+  ).toBe(false);
 });
 
-Deno.test("applyAssertions not-distractor-house rejects distractor literal in output", () => {
+test("applyAssertions not-distractor-house rejects distractor literal in output", () => {
   const evalCase = resolveEvalCase("distractor-work-disambiguation");
   const result = applyAssertions(
     createEvalCaseResult({
@@ -262,10 +261,10 @@ Deno.test("applyAssertions not-distractor-house rejects distractor literal in ou
     evalCase.assertions,
   );
 
-  assertFalse(
-    result.assertions.find((assertion) =>
-      assertion.name === "not-distractor-house"
+  expect(
+    result.assertions.find(
+      (assertion) => assertion.name === "not-distractor-house",
     )?.pass,
-  );
-  assertFalse(result.success);
+  ).toBe(false);
+  expect(result.success).toBe(false);
 });

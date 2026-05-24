@@ -56,13 +56,14 @@ export function aggregateEvalStats(
 ): EvalStatsResult {
   const casePassRates: EvalCasePassRate[] = selectedCases.map((testCase) => {
     const resultsForCase = trialResults.map((trial) =>
-      trial.find((result) => result.id === testCase.id)
+      trial.find((result) => result.id === testCase.id),
     );
 
     const assertionNames = [
       ...new Set(
-        resultsForCase.flatMap((result) =>
-          result?.assertions.map((assertion) => assertion.name) ?? []
+        resultsForCase.flatMap(
+          (result) =>
+            result?.assertions.map((assertion) => assertion.name) ?? [],
         ),
       ),
     ];
@@ -73,8 +74,8 @@ export function aggregateEvalStats(
         let observedTrials = 0;
 
         for (const result of resultsForCase) {
-          const assertion = result?.assertions.find((entry) =>
-            entry.name === assertionName
+          const assertion = result?.assertions.find(
+            (entry) => entry.name === assertionName,
           );
           if (!assertion) {
             continue;
@@ -108,9 +109,10 @@ export function aggregateEvalStats(
     };
   });
 
-  const success = minPassRate === undefined
-    ? casePassRates.every((caseRate) => caseRate.passRate === 1)
-    : casePassRates.every((caseRate) => caseRate.passRate >= minPassRate);
+  const success =
+    minPassRate === undefined
+      ? casePassRates.every((caseRate) => caseRate.passRate === 1)
+      : casePassRates.every((caseRate) => caseRate.passRate >= minPassRate);
 
   return {
     providerId,
@@ -159,8 +161,8 @@ export function buildCompareResult(
   statsResults: EvalStatsResult[],
   options: EvalSuiteRunOptions,
 ): EvalCompareResult {
-  const toolConfigIds = statsResults.map((statsResult) =>
-    statsResult.toolConfigId ?? defaultToolConfigId
+  const toolConfigIds = statsResults.map(
+    (statsResult) => statsResult.toolConfigId ?? defaultToolConfigId,
   );
 
   return {
@@ -177,8 +179,8 @@ export function buildCompareResult(
       description: testCase.description,
       passRatesByToolConfig: Object.fromEntries(
         statsResults.flatMap((statsResult) => {
-          const casePassRate = statsResult.casePassRates.find((entry) =>
-            entry.id === testCase.id
+          const casePassRate = statsResult.casePassRates.find(
+            (entry) => entry.id === testCase.id,
           );
           const toolConfigId = statsResult.toolConfigId ?? defaultToolConfigId;
           return casePassRate ? [[toolConfigId, casePassRate]] : [];
@@ -229,9 +231,7 @@ export async function runEvalSuiteForToolConfig(
         break;
       }
 
-      results.push(
-        applyAssertions(rawResult, testCase.assertions, toolConfig),
-      );
+      results.push(applyAssertions(rawResult, testCase.assertions, toolConfig));
     }
 
     trialSuiteResults.push({
@@ -248,13 +248,13 @@ export async function runEvalSuiteForToolConfig(
   const shouldAggregateStats = options.trialCount > 1 || options.compareMode;
   const statsResult = shouldAggregateStats
     ? aggregateEvalStats(
-      selectedEvalCases,
-      trialSuiteResults.map((trial) => trial.results),
-      options.providerId,
-      options.modelId,
-      toolConfig.id,
-      options.minPassRate,
-    )
+        selectedEvalCases,
+        trialSuiteResults.map((trial) => trial.results),
+        options.providerId,
+        options.modelId,
+        toolConfig.id,
+        options.minPassRate,
+      )
     : undefined;
 
   return { suiteResult, statsResult, fatalError };

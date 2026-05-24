@@ -13,9 +13,11 @@ export function createEvalTools(client: Client) {
     searchWorld: tool({
       description: SEARCH_WORLD_TOOL_DESCRIPTION,
       inputSchema: z.object({
-        query: z.string().describe(
-          "Exact label, keyword, or natural-language phrase to search for.",
-        ),
+        query: z
+          .string()
+          .describe(
+            "Exact label, keyword, or natural-language phrase to search for.",
+          ),
       }),
       execute: async (request: { query: string }) => {
         try {
@@ -35,19 +37,25 @@ export function createEvalTools(client: Client) {
     executeSparql: tool({
       description: EXECUTE_SPARQL_TOOL_DESCRIPTION,
       inputSchema: z.object({
-        query: z.string().describe(
-          "The raw read-only SPARQL query string. Only SELECT and ASK are allowed.",
-        ),
-        baseIri: z.string().optional().describe(
-          "Base IRI for the query execution.",
-        ),
-        timeoutMs: z.number().optional().describe(
-          "Query timeout in milliseconds (defaults to 30 seconds).",
-        ),
+        query: z
+          .string()
+          .describe(
+            "The raw read-only SPARQL query string. Only SELECT and ASK are allowed.",
+          ),
+        baseIri: z
+          .string()
+          .optional()
+          .describe("Base IRI for the query execution."),
+        timeoutMs: z
+          .number()
+          .optional()
+          .describe("Query timeout in milliseconds (defaults to 30 seconds)."),
       }),
-      execute: async (
-        request: { query: string; baseIri?: string; timeoutMs?: number },
-      ) => {
+      execute: async (request: {
+        query: string;
+        baseIri?: string;
+        timeoutMs?: number;
+      }) => {
         if (!isReadOnlySparqlQuery(request.query)) {
           return {
             success: false,

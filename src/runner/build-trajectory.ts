@@ -19,9 +19,9 @@ export function buildTrajectory(
       stepIndex,
       toolName: toolCall.toolName,
       args: toolCall.input,
-      result: step.toolResults.find((toolResult) =>
-        toolResult.toolCallId === toolCall.toolCallId
+      result: step.toolResults.find(
+        (toolResult) => toolResult.toolCallId === toolCall.toolCallId,
       )?.output,
-    }))
+    })),
   );
 }

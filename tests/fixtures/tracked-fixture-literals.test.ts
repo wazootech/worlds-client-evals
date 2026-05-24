@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { expect, test } from "bun:test";
 import { TRACKED_FIXTURE_LITERALS } from "@/fixtures/tracked-fixture-literals.ts";
 import {
   AUTHOR_LITERAL,
@@ -57,14 +57,10 @@ const FIXTURE_ANSWER_STRINGS = [
   UNKNOWN_HIERARCHY_LABEL,
 ] as const;
 
-Deno.test("TRACKED_FIXTURE_LITERALS includes every fixture answer string", () => {
+test("TRACKED_FIXTURE_LITERALS includes every fixture answer string", () => {
   const trackedSet = new Set<string>(TRACKED_FIXTURE_LITERALS);
-  const missingStrings = FIXTURE_ANSWER_STRINGS.filter((fixtureString) =>
-    !trackedSet.has(fixtureString)
+  const missingStrings = FIXTURE_ANSWER_STRINGS.filter(
+    (fixtureString) => !trackedSet.has(fixtureString),
   );
-  assertEquals(
-    missingStrings,
-    [],
-    `Add to TRACKED_FIXTURE_LITERALS: ${missingStrings.join(", ")}`,
-  );
+  expect(missingStrings).toEqual([]);
 });

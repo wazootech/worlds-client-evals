@@ -1,5 +1,6 @@
-import { ensureDir } from "@std/fs";
-import { dirname, fromFileUrl, join } from "@std/path";
+import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type {
   EvalCompareResult,
   EvalStatsResult,
@@ -8,7 +9,7 @@ import type {
 
 /** resolveRepositoryRoot returns the eval harness repository root directory. */
 export function resolveRepositoryRoot(): string {
-  return join(dirname(fromFileUrl(import.meta.url)), "..", "..");
+  return join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 }
 
 /** resolveResultsDirectory returns the default results output directory. */
@@ -36,8 +37,8 @@ export async function writeSuiteResult(
     resultsDirectory,
     buildResultFileName("latest", suffix),
   );
-  await ensureDir(resultsDirectory);
-  await Deno.writeTextFile(outputPath, JSON.stringify(result, null, 2));
+  await mkdir(resultsDirectory, { recursive: true });
+  await writeFile(outputPath, JSON.stringify(result, null, 2), "utf8");
   return outputPath;
 }
 
@@ -51,8 +52,8 @@ export async function writeStatsResult(
     resultsDirectory,
     buildResultFileName("stats-latest", suffix),
   );
-  await ensureDir(resultsDirectory);
-  await Deno.writeTextFile(outputPath, JSON.stringify(result, null, 2));
+  await mkdir(resultsDirectory, { recursive: true });
+  await writeFile(outputPath, JSON.stringify(result, null, 2), "utf8");
   return outputPath;
 }
 
@@ -65,8 +66,8 @@ export async function writeCompareResult(
     resultsDirectory,
     buildResultFileName("compare", result.toolConfigIds.join("-vs-")),
   );
-  await ensureDir(resultsDirectory);
-  await Deno.writeTextFile(outputPath, JSON.stringify(result, null, 2));
+  await mkdir(resultsDirectory, { recursive: true });
+  await writeFile(outputPath, JSON.stringify(result, null, 2), "utf8");
   return outputPath;
 }
 
@@ -74,23 +75,20 @@ export async function writeCompareResult(
 export async function findNewestCompareResultPath(
   resultsDirectory = resolveResultsDirectory(),
 ): Promise<string | undefined> {
-  const configuredPath = Deno.env.get("COMPARE_RESULT_PATH");
+  const configuredPath = process.env.COMPARE_RESULT_PATH;
   if (configuredPath) {
     return configuredPath;
   }
 
   let newestPath: string | undefined;
   let newestModifiedAt = 0;
-  for await (const entry of Deno.readDir(resultsDirectory)) {
-    if (
-      !entry.isFile || !entry.name.startsWith("compare-") ||
-      !entry.name.endsWith(".json")
-    ) {
+  for (const entryName of await readdir(resultsDirectory)) {
+    if (!entryName.startsWith("compare-") || !entryName.endsWith(".json")) {
       continue;
     }
 
-    const entryPath = join(resultsDirectory, entry.name);
-    const fileInfo = await Deno.stat(entryPath);
+    const entryPath = join(resultsDirectory, entryName);
+    const fileInfo = await stat(entryPath);
     if (fileInfo.mtime && fileInfo.mtime.getTime() > newestModifiedAt) {
       newestModifiedAt = fileInfo.mtime.getTime();
       newestPath = entryPath;

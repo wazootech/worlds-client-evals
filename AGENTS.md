@@ -67,7 +67,7 @@ stay deferred until protocol assertions are stable.
 `@worlds/client`, not duplicated in this harness.
 
 **CI on push and pull request:**
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `deno task ci` only
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `bun run ci` only
 (format, lint, unit tests). It does not call Gemini. Live agent evals run via
 [`.github/workflows/evals.yml`](.github/workflows/evals.yml) on manual dispatch
 or the weekly schedule when `GOOGLE_GENERATIVE_AI_API_KEY` is configured.
@@ -149,34 +149,22 @@ green-passing integration pipeline runs:
 
 - **Unix line endings (LF) enforcement:** All files in the repository MUST use
   standard Unix line endings (`LF` / `\n`). The use of Windows line endings
-  (`CRLF` / `\r\n`) is strictly prohibited. You MUST run `deno fmt` before
+  (`CRLF` / `\r\n`) is strictly prohibited. You MUST run `bun run fmt` before
   staging any changes to auto-format text line endings and keep the CI formatter
   checks green.
 
-- **Mandatory execution flags:**
-  - **Unstable KV:** Any execution task or test interacting with Deno KV must be
-    executed with the `--unstable-kv` flag.
-  - **Environment variables:** Any execution task requiring remote endpoints or
-    API tokens must be executed with the `--env` flag to cleanly load `.env`
-    variables into the process.
-
-- **Vendored jsonld-context-parser workaround:** Comunica's upstream
-  `jsonld-context-parser` has a known JSR compatibility issue. A patched copy
-  lives in `vendor/jsonld-context-parser/`, redirected via
-  `"links": ["./vendor/jsonld-context-parser"]` in `deno.json`. This redirect is
-  local-only — JSR strips `links` and `exclude` during packaging. If you hit
-  `jsonld-context-parser` resolution errors in the local test suite, ensure the
-  vendor directory and `links` config are intact.
+- **Environment variables:** Any execution task requiring remote endpoints or
+  API tokens must load `.env` (for example `bun --env-file=.env run evals` or
+  the `evals` npm script, which loads `.env` automatically).
 
 - **npm lifecycle scripts:** `@worlds/client` pulls TensorFlow-related npm
-  packages with optional lifecycle scripts. After `deno update`, run
-  `deno install --allow-scripts` (CI does this before `deno task ci` and live
-  evals) so installs match local development.
+  packages with optional lifecycle scripts. Run `bun install` after dependency
+  updates (CI does this before `bun run ci` and live evals) so installs match
+  local development.
 
 - **Test-driven execution boundaries:** Always run local tests with
-  `deno task ci` or `deno test --allow-all --unstable-kv` to verify that all
-  code compiles, formats, and passes operational invariants without errors prior
-  to opening pull requests.
+  `bun run ci` or `bun test` to verify that all code compiles, formats, and
+  passes operational invariants without errors prior to opening pull requests.
 
 - **Live eval quota awareness:** The eval harness calls the Google Gemini API.
   Free-tier quotas are limited (500 RPD, 15 RPM). Use `--filter <case>` for

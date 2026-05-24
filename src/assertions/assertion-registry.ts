@@ -24,11 +24,11 @@ function runAssertionSpec(
 
   switch (spec.kind) {
     case "used-required-tools": {
-      const toolNames = result.metadata.trajectory.map((record) =>
-        record.toolName
+      const toolNames = result.metadata.trajectory.map(
+        (record) => record.toolName,
       );
       const pass = toolConfig.requiredToolNames.every((toolName) =>
-        toolNames.includes(toolName)
+        toolNames.includes(toolName),
       );
       return {
         name: spec.name,
@@ -39,14 +39,14 @@ function runAssertionSpec(
       };
     }
     case "search-before-sparql": {
-      const searchIndex = result.metadata.trajectory.findIndex((record) =>
-        record.toolName === toolConfig.discoveryName
+      const searchIndex = result.metadata.trajectory.findIndex(
+        (record) => record.toolName === toolConfig.discoveryName,
       );
-      const sparqlIndex = result.metadata.trajectory.findIndex((record) =>
-        record.toolName === toolConfig.queryName
+      const sparqlIndex = result.metadata.trajectory.findIndex(
+        (record) => record.toolName === toolConfig.queryName,
       );
-      const pass = searchIndex !== -1 && sparqlIndex !== -1 &&
-        searchIndex < sparqlIndex;
+      const pass =
+        searchIndex !== -1 && sparqlIndex !== -1 && searchIndex < sparqlIndex;
       return {
         name: spec.name,
         pass,
@@ -56,15 +56,16 @@ function runAssertionSpec(
       };
     }
     case "sparql-handoff-valid": {
-      const searchStep = result.metadata.trajectory.find((record) =>
-        record.toolName === toolConfig.discoveryName
+      const searchStep = result.metadata.trajectory.find(
+        (record) => record.toolName === toolConfig.discoveryName,
       );
-      const sparqlStep = result.metadata.trajectory.find((record) =>
-        record.toolName === toolConfig.queryName
+      const sparqlStep = result.metadata.trajectory.find(
+        (record) => record.toolName === toolConfig.queryName,
       );
       const discoveredSubjects = extractSearchSubjects(searchStep?.result);
       const sparqlInput = JSON.stringify(sparqlStep?.args ?? {});
-      const pass = discoveredSubjects.length > 0 &&
+      const pass =
+        discoveredSubjects.length > 0 &&
         discoveredSubjects.some((subject) => sparqlInput.includes(subject));
       return {
         name: spec.name,
@@ -72,10 +73,10 @@ function runAssertionSpec(
         message: pass
           ? undefined
           : discoveredSubjects.length === 0
-          ? `${toolConfig.discoveryName} returned no subject URIs to hand off into ${toolConfig.queryName}; ${diagnosticSuffix}`
-          : `Discovered subjects not found in first ${toolConfig.queryName} args: ${
-            discoveredSubjects.join(", ")
-          }; SPARQL args: ${sparqlInput.slice(0, 200)}; ${diagnosticSuffix}`,
+            ? `${toolConfig.discoveryName} returned no subject URIs to hand off into ${toolConfig.queryName}; ${diagnosticSuffix}`
+            : `Discovered subjects not found in first ${toolConfig.queryName} args: ${discoveredSubjects.join(
+                ", ",
+              )}; SPARQL args: ${sparqlInput.slice(0, 200)}; ${diagnosticSuffix}`,
       };
     }
     case "step-count-bounded": {
@@ -89,12 +90,14 @@ function runAssertionSpec(
       };
     }
     case "updates-blocked": {
-      const blockedRecord = result.metadata.trajectory.find((record) =>
-        record.toolName === toolConfig.queryName
+      const blockedRecord = result.metadata.trajectory.find(
+        (record) => record.toolName === toolConfig.queryName,
       );
-      const guardErrorSubstring = toolConfig.guardErrorSubstring ??
+      const guardErrorSubstring =
+        toolConfig.guardErrorSubstring ??
         "Only read-only SPARQL queries are allowed";
-      const blocked = blockedRecord !== undefined &&
+      const blocked =
+        blockedRecord !== undefined &&
         JSON.stringify(blockedRecord.result ?? {}).includes(
           guardErrorSubstring,
         );
@@ -108,12 +111,12 @@ function runAssertionSpec(
         message: blocked
           ? undefined
           : blockedRecord === undefined
-          ? `No ${toolConfig.queryName} call was made; ${diagnosticSuffix}`
-          : `SPARQL guard did not reject the query${
-            rejectedQuery ? `: "${rejectedQuery.slice(0, 120)}"` : ""
-          }; observed result: ${
-            JSON.stringify(blockedRecord.result ?? {}).slice(0, 200)
-          }; ${diagnosticSuffix}`,
+            ? `No ${toolConfig.queryName} call was made; ${diagnosticSuffix}`
+            : `SPARQL guard did not reject the query${
+                rejectedQuery ? `: "${rejectedQuery.slice(0, 120)}"` : ""
+              }; observed result: ${JSON.stringify(
+                blockedRecord.result ?? {},
+              ).slice(0, 200)}; ${diagnosticSuffix}`,
       };
     }
     case "final-answer-contains": {
@@ -125,9 +128,10 @@ function runAssertionSpec(
         pass,
         message: pass
           ? undefined
-          : `Expected output to contain "${spec.literal}"; got: ${
-            result.output.slice(0, 200)
-          }; ${diagnosticSuffix}`,
+          : `Expected output to contain "${spec.literal}"; got: ${result.output.slice(
+              0,
+              200,
+            )}; ${diagnosticSuffix}`,
       };
     }
     case "output-excludes": {
@@ -139,9 +143,10 @@ function runAssertionSpec(
         pass,
         message: pass
           ? undefined
-          : `Final answer must not contain "${spec.literal}"; got: ${
-            result.output.slice(0, 200)
-          }; ${diagnosticSuffix}`,
+          : `Final answer must not contain "${spec.literal}"; got: ${result.output.slice(
+              0,
+              200,
+            )}; ${diagnosticSuffix}`,
       };
     }
     case "sparql-answer-grounded": {
@@ -155,8 +160,8 @@ function runAssertionSpec(
         message: pass
           ? undefined
           : `Expected ${toolConfig.queryName} binding literal "${spec.literal}"; observed literals: ${
-            bindingLiterals.length > 0 ? bindingLiterals.join(", ") : "(none)"
-          }; ${diagnosticSuffix}`,
+              bindingLiterals.length > 0 ? bindingLiterals.join(", ") : "(none)"
+            }; ${diagnosticSuffix}`,
       };
     }
     case "sparql-answer-excludes": {
@@ -169,9 +174,9 @@ function runAssertionSpec(
         pass,
         message: pass
           ? undefined
-          : `Expected ${toolConfig.queryName} bindings to exclude "${spec.literal}"; observed literals: ${
-            bindingLiterals.join(", ")
-          }; ${diagnosticSuffix}`,
+          : `Expected ${toolConfig.queryName} bindings to exclude "${spec.literal}"; observed literals: ${bindingLiterals.join(
+              ", ",
+            )}; ${diagnosticSuffix}`,
       };
     }
     case "literals-subset-of-tools": {
@@ -182,15 +187,16 @@ function runAssertionSpec(
       const normalizedOutput = normalizeOutputText(result.output);
       const offendingLiteral = TRACKED_FIXTURE_LITERALS.find((literal) => {
         const normalizedLiteral = normalizeOutputText(literal);
-        return normalizedOutput.includes(normalizedLiteral) &&
-          !allowlist.some((allowed) =>
-            normalizeOutputText(allowed) === normalizedLiteral
-          );
+        return (
+          normalizedOutput.includes(normalizedLiteral) &&
+          !allowlist.some(
+            (allowed) => normalizeOutputText(allowed) === normalizedLiteral,
+          )
+        );
       });
       const pass = offendingLiteral === undefined;
-      const allowlistPreview = allowlist.length > 0
-        ? allowlist.slice(0, 8).join(", ")
-        : "(none)";
+      const allowlistPreview =
+        allowlist.length > 0 ? allowlist.slice(0, 8).join(", ") : "(none)";
       return {
         name: spec.name,
         pass,

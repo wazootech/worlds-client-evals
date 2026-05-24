@@ -1,0 +1,28 @@
+{
+  "name": "worlds-client-evals",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "evals": "bun --env-file=.env run src/cli/run.ts",
+    "test": "bun test",
+    "fmt": "biome format --write .",
+    "fmt:check": "biome format .",
+    "lint": "biome lint .",
+    "ci": "bun run fmt:check && bun run lint && bun run test"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^3.0.79",
+    "@comunica/query-sparql-rdfjs-lite": "^5.2.2",
+    "@libsql/client": "^0.17.3",
+    "@worlds/client": "npm:@jsr/worlds__client@^0.0.14",
+    "ai": "^6.0.191",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
+    "@types/bun": "latest"
+  },
+  "trustedDependencies": [
+    "core-js"
+  ]
+}
