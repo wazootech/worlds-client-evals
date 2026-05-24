@@ -22,9 +22,6 @@
     "@biomejs/biome": "^2.4.15",
     "@types/bun": "latest"
   },
-  "overrides": {
-    "jsonld-context-parser": "file:./vendor/jsonld-context-parser"
-  },
   "trustedDependencies": [
     "core-js"
   ]

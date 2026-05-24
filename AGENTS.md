@@ -157,13 +157,6 @@ green-passing integration pipeline runs:
   API tokens must load `.env` (for example `bun --env-file=.env run evals` or
   the `evals` npm script, which loads `.env` automatically).
 
-- **Vendored jsonld-context-parser workaround:** Comunica's upstream
-  `jsonld-context-parser` has a known JSR compatibility issue. A patched copy
-  lives in `vendor/jsonld-context-parser/`, redirected via the `overrides`
-  field in `package.json`. If you hit `jsonld-context-parser` resolution errors
-  in the local test suite, ensure the vendor directory and `overrides` config are
-  intact.
-
 - **npm lifecycle scripts:** `@worlds/client` pulls TensorFlow-related npm
   packages with optional lifecycle scripts. Run `bun install` after dependency
   updates (CI does this before `bun run ci` and live evals) so installs match

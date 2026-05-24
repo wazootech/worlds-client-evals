@@ -67,7 +67,6 @@ jobs:
             "package.json"
             "bun.lock"
             ".github/workflows/"
-            "vendor/"
           )
 
           RECENT_COMMITS=$(
