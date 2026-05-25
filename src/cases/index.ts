@@ -26,6 +26,12 @@ import {
   HIERARCHY_WYVERN_LABEL,
   UNKNOWN_HIERARCHY_LABEL,
 } from "@/fixtures/hierarchy-world.ts";
+import {
+  MEMORY_AGENT_SEARCH_LABEL,
+  MEMORY_CURRENT_AFFILIATION_LITERAL,
+  MEMORY_STALE_AFFILIATION_LITERAL,
+  UNKNOWN_MEMORY_AGENT_SEARCH_LABEL,
+} from "@/fixtures/memory-world.ts";
 
 /** protocolAssertions bundles the standard discover-then-verify checks. */
 function protocolAssertions(maxSteps: number): AssertionSpec[] {
@@ -50,6 +56,23 @@ function happyPathAssertions(maxSteps: number): AssertionSpec[] {
       name: "final-answer-correct",
       kind: "final-answer-contains",
       literal: EXPECTED_HOUSE_LITERAL,
+    },
+  ];
+}
+
+/** memoryUpdateAssertions bundles protocol plus grounded current-affiliation checks. */
+function memoryUpdateAssertions(maxSteps: number): AssertionSpec[] {
+  return [
+    ...protocolAssertions(maxSteps),
+    {
+      name: "sparql-answer-grounded-current",
+      kind: "sparql-answer-grounded",
+      literal: MEMORY_CURRENT_AFFILIATION_LITERAL,
+    },
+    {
+      name: "final-answer-current-affiliation",
+      kind: "final-answer-contains",
+      literal: MEMORY_CURRENT_AFFILIATION_LITERAL,
     },
   ];
 }
@@ -341,6 +364,44 @@ export const evalCases: EvalCaseDefinition[] = [
         literal: HIERARCHY_NEST_LOCATION_LITERAL,
       },
     ],
+  },
+  {
+    id: "memory-update-current-affiliation",
+    description:
+      "Memory fixture returns current affiliation after session-2 knowledge update",
+    fixtureId: "memory",
+    promptTemplate: `An agent was affiliated with "${MEMORY_STALE_AFFILIATION_LITERAL}" in session 1. Session 2 updated the affiliation to "${MEMORY_CURRENT_AFFILIATION_LITERAL}". Find the agent with label "${MEMORY_AGENT_SEARCH_LABEL}". First call {{discovery}} with exactly "${MEMORY_AGENT_SEARCH_LABEL}". Then use one {{query}} SELECT ?affiliation WHERE { <agent-uri-from-search> <${WAZOO_VOCAB_NAMESPACE}currentAffiliation> ?affiliation . } where <agent-uri-from-search> is the subject field from the {{discovery}} hit. Answer with only the exact current affiliation literal from {{query}}.`,
+    maxSteps: 5,
+    assertions: memoryUpdateAssertions(5),
+  },
+  {
+    id: "memory-update-excludes-stale-affiliation",
+    description:
+      "Memory fixture answer must use session-2 current affiliation, not session-1 stale value",
+    fixtureId: "memory",
+    promptTemplate: `An agent was affiliated with "${MEMORY_STALE_AFFILIATION_LITERAL}" in session 1. Session 2 updated the affiliation to "${MEMORY_CURRENT_AFFILIATION_LITERAL}". Find the agent with label "${MEMORY_AGENT_SEARCH_LABEL}" and report the current affiliation after session 2 (not the session-1 value). First call {{discovery}} with exactly "${MEMORY_AGENT_SEARCH_LABEL}". Then use one {{query}} SELECT ?affiliation WHERE { <agent-uri-from-search> <${WAZOO_VOCAB_NAMESPACE}currentAffiliation> ?affiliation . } where <agent-uri-from-search> is the subject field from the {{discovery}} hit. Answer with only the exact current affiliation literal from {{query}}.`,
+    maxSteps: 5,
+    assertions: [
+      ...memoryUpdateAssertions(5),
+      {
+        name: "not-stale-affiliation",
+        kind: "output-excludes",
+        literal: MEMORY_STALE_AFFILIATION_LITERAL,
+      },
+    ],
+  },
+  {
+    id: "memory-update-unknown-agent",
+    description:
+      "Memory fixture search miss must not invent the current affiliation literal",
+    fixtureId: "memory",
+    promptTemplate: `Find the current affiliation of the agent with label "${UNKNOWN_MEMORY_AGENT_SEARCH_LABEL}". First call {{discovery}} with exactly "${UNKNOWN_MEMORY_AGENT_SEARCH_LABEL}". Then use {{query}} only if search returns a subject URI. If no matching subject is found, say the fact was not found. Do not guess or invent values.`,
+    maxSteps: 5,
+    assertions: negativeSearchMissAssertions(
+      MEMORY_CURRENT_AFFILIATION_LITERAL,
+      "does-not-invent-current-affiliation",
+      5,
+    ),
   },
 ];
 

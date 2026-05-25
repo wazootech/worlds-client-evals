@@ -17,7 +17,9 @@ for eval execution. Each eval case receives a fresh seeded world instance.
 
 A seeded world factory that produces a `Client` with a known RDF graph. The
 primary fixture contains work, protagonist, and house entities. The scholar
-fixture contains paper, author, venue, and year entities.
+fixture contains paper, author, venue, and year entities. The memory fixture
+contains an agent with superseded session-1 and current session-2 affiliation
+literals for knowledge-update smoke scenarios.
 
 ### Eval case
 

@@ -2,9 +2,15 @@ import type { Client } from "@worlds/client";
 import { createSeededWorldClient } from "./primary-world.ts";
 import { createSeededScholarWorldClient } from "./scholar-world.ts";
 import { createSeededHierarchyWorldClient } from "./hierarchy-world.ts";
+import { createSeededMemoryWorldClient } from "./memory-world.ts";
 
 /** fixtureIds lists every seeded world identifier registered for eval cases. */
-export const fixtureIds = ["primary", "scholar", "hierarchy"] as const;
+export const fixtureIds = [
+  "primary",
+  "scholar",
+  "hierarchy",
+  "memory",
+] as const;
 
 /** FixtureId identifies a registered seeded world factory. */
 export type FixtureId = (typeof fixtureIds)[number];
@@ -14,6 +20,7 @@ export const fixturesById: Record<FixtureId, () => Promise<Client>> = {
   primary: createSeededWorldClient,
   scholar: createSeededScholarWorldClient,
   hierarchy: createSeededHierarchyWorldClient,
+  memory: createSeededMemoryWorldClient,
 };
 
 /** resolveFixture returns the world client factory for a given fixture id. */

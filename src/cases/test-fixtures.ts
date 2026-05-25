@@ -18,6 +18,11 @@ import {
   HIERARCHY_NEST_SUBJECT_URI,
   HIERARCHY_WYVERN_LABEL,
 } from "@/fixtures/hierarchy-world.ts";
+import {
+  MEMORY_AGENT_SUBJECT_URI,
+  MEMORY_CURRENT_AFFILIATION_LITERAL,
+  UNKNOWN_MEMORY_AGENT_SEARCH_LABEL,
+} from "@/fixtures/memory-world.ts";
 
 /** createPassingHappyPathTrajectory returns a trajectory that satisfies happy-path assertions. */
 function createPassingHappyPathTrajectory(): EvalToolRecord[] {
@@ -189,6 +194,35 @@ export const caseTestFixtures: Record<string, EvalCaseTestFixture> = {
   "hierarchy-optional-pattern": {
     trajectory: createTrajectory(HIERARCHY_NEST_SUBJECT_URI, {}),
     output: "Optional pattern did not match any location.",
+  },
+  "memory-update-current-affiliation": {
+    trajectory: createTrajectory(MEMORY_AGENT_SUBJECT_URI, {
+      affiliation: {
+        type: "literal",
+        value: MEMORY_CURRENT_AFFILIATION_LITERAL,
+      },
+    }),
+    output: `Current affiliation: ${MEMORY_CURRENT_AFFILIATION_LITERAL}`,
+  },
+  "memory-update-excludes-stale-affiliation": {
+    trajectory: createTrajectory(MEMORY_AGENT_SUBJECT_URI, {
+      affiliation: {
+        type: "literal",
+        value: MEMORY_CURRENT_AFFILIATION_LITERAL,
+      },
+    }),
+    output: `Current affiliation: ${MEMORY_CURRENT_AFFILIATION_LITERAL}`,
+  },
+  "memory-update-unknown-agent": {
+    trajectory: [
+      {
+        stepIndex: 0,
+        toolName: "searchWorld",
+        args: { query: UNKNOWN_MEMORY_AGENT_SEARCH_LABEL },
+        result: { success: true, results: [] },
+      },
+    ],
+    output: "No matching agent was found in the graph.",
   },
 };
 
