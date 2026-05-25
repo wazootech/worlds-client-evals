@@ -78,6 +78,142 @@ fixture answer strings there;
 [`tests/fixtures/tracked-fixture-literals.test.ts`](tests/fixtures/tracked-fixture-literals.test.ts)
 fails if any canonical fixture string is missing from the list.
 
+## Eval iteration
+
+Eval-driven development here means encoding desired agent outcomes as eval cases
+and assertion specs, running live Gemini trials against seeded worlds, and
+tightening prompts or proofs until pass rates stabilize. Deterministic assertions
+are the pass/fail gate (see Evaluation policy above). Trajectories in
+`results/*.json` are evidence for diagnosis; they are not committed to this
+repository.
+
+### Closed loop
+
+1. **Define** the outcome in [`src/cases/index.ts`](src/cases/index.ts):
+   `promptTemplate`, `assertions`, optional `fixtureId`, and `maxSteps`.
+2. **Run** live evals: `bun run evals` with `--filter`, `--trials`, or
+   `--compare`. See [README.md](README.md) for CLI examples under Tool
+   configuration iteration.
+3. **Observe** the terminal summary and `results/latest.json` (per-case output,
+   assertion lines, `metadata.trajectory`). With `--trials`, also read
+   `results/stats-latest.json` for per-case and per-assertion pass rates.
+4. **Diagnose** using the failing assertion `kind`, its `message`, and the tool
+   sequence in the trajectory.
+5. **Fix** the smallest layer that applies: proof (guard, tool description,
+   client invariant) before prompt text, case wiring before a new registry
+   `kind`.
+6. **Verify** with `bun run ci` (golden trajectories in
+   [`src/cases/test-fixtures.ts`](src/cases/test-fixtures.ts)), then re-run the
+   filtered live case.
+
+```mermaid
+flowchart TD
+  Define["Define case + assertions"]
+  Run["bun run evals"]
+  Observe["Summary + results JSON"]
+  Diagnose["Map kind to layer"]
+  Fix["Proof then prompt then case"]
+  Verify["bun run ci then live rerun"]
+  Define --> Run --> Observe --> Diagnose --> Fix --> Verify
+  Verify --> Run
+```
+
+### What you optimize
+
+| Layer | Location |
+| :---- | :------- |
+| System prompt | [`src/runner/eval-agent-system-prompt.ts`](src/runner/eval-agent-system-prompt.ts) |
+| Per-case scenario | [`src/cases/index.ts`](src/cases/index.ts) `promptTemplate` |
+| Tool descriptions | [`src/tools/agent-tool-descriptions.ts`](src/tools/agent-tool-descriptions.ts) |
+| Stricter tool discipline | [`src/tool-configs/`](src/tool-configs/) `systemPromptAdditions` |
+| Discovery/query placeholders | [`src/tool-configs/index.ts`](src/tool-configs/index.ts) (`{{discovery}}`, `{{query}}`) |
+
+### Finding gaps
+
+Add or tune a case when:
+
+- Dogfooding surfaces a repeatable failure (wrong handoff, invented literal,
+  tool loop, guard bypass attempt).
+- A new fixture graph path needs coverage (`fixtureId` in
+  [`src/fixtures/index.ts`](src/fixtures/index.ts)).
+- A credentialed baseline run (see Agent evals CI below) regresses on a named
+  assertion.
+
+| Goal | Typical flags |
+| :--- | :------------ |
+| Iterate on one hypothesis | `--filter <case-id>` |
+| Measure stability | `--trials N --min-pass-rate <0-1>` |
+| Compare prompt or tool configs | `--compare baseline,strict-eval` |
+
+Incomplete, rate-limited, or credential-skipped live runs are operational signals
+only; do not cite them as benchmark evidence.
+
+### Reading failures
+
+| Assertion kind | Behavior exercised | Typical prompt lever |
+| :------------- | :----------------- | :------------------- |
+| `used-required-tools` | Both discovery and query tools called | System prompt; case instructions to use `{{discovery}}` and `{{query}}` |
+| `search-before-sparql` | Discovery before query in tool sequence | Case ordering text; system prompt tool order |
+| `sparql-handoff-valid` | Subject URI from search appears in first SPARQL args | Case handoff steps; system “use subject from search” |
+| `step-count-bounded` | Step budget respected | Case “fewest tool calls”; stricter tool config |
+| `updates-blocked` | Mutating SPARQL triggers read-only guard | Usually code ([`is-read-only-sparql-query.ts`](src/tools/is-read-only-sparql-query.ts)), not wording |
+| `final-answer-contains` | Final text includes expected literal | Case “exact literal only”; system “do not paraphrase” |
+| `output-excludes` | Final text must not include a literal | Case disambiguation or “say not found” |
+| `sparql-answer-grounded` | Literal appears in SPARQL bindings | Ensures answer came from query, not guess |
+| `sparql-answer-excludes` | Literal absent from bindings | OPTIONAL or absent-data scenarios |
+| `literals-subset-of-tools` | No tracked fixture strings without tool evidence | Case “do not guess”; epistemic closure allowlist |
+
+Registry implementations and failure messages live in
+[`src/assertions/assertion-registry.ts`](src/assertions/assertion-registry.ts).
+
+### Choosing a fix
+
+Use the Evaluation policy table as the default decision guide:
+
+- **Prompt or agent contract** when protocol assertions fail (`used-required-tools`,
+  `search-before-sparql`, `sparql-handoff-valid`) but tool outputs look correct;
+  when `sparql-answer-grounded` passes but `final-answer-contains` fails
+  (paraphrase); or when the same assertion flakes across `--trials` (discipline).
+- **Code or harness** when `updates-blocked` fails (guard or error substring);
+  or when trajectory reducers mis-parse otherwise valid tool results.
+- **Upstream (`@worlds/client` or fixture)** when `sparql-handoff-valid` fails with
+  empty discovered subjects despite a reasonable search query; or when search/SPARQL
+  result shapes change.
+- **Case wiring only** when the scenario is new but an existing `kind` already
+  expresses the invariant—add an `id` and `assertions` in
+  [`src/cases/index.ts`](src/cases/index.ts) without a new registry kind.
+- **New registry `kind`** only when no composable kind fits; one kind, rich
+  failure `message`, wire cases in the catalog.
+
+### Worked example
+
+Case `search-miss-unknown-label` encodes epistemic discipline when discovery finds
+no subject for an unknown work label:
+
+- **Prompt** instructs calling `{{discovery}}` with the unknown label, using
+  `{{query}}` only if a URI is returned, and saying the fact was not found
+  otherwise.
+- **Assertions** `output-excludes` (must not emit the seeded house literal) and
+  `literals-subset-of-tools` (no tracked fixture strings without tool evidence).
+- **System prompt** reinforces “say not found instead of guessing” in
+  [`eval-agent-system-prompt.ts`](src/runner/eval-agent-system-prompt.ts).
+
+Iterate with `bun run evals --filter search-miss-unknown-label`, inspect the
+trajectory for a spurious `executeSparql` or invented literal in output, tighten
+wording if needed, then run `--trials 10` before widening the filter.
+
+### Iteration habits
+
+- Change **one case per hypothesis**; use `--filter` until it passes, then run a
+  broader slice.
+- Keep assertion **`name` fields stable** so `--trials` and `--compare` aggregate
+  pass rates meaningfully.
+- Extend **proofs** (tool descriptions, guard, client invariants) before adding
+  registry kinds or per-case assertion logic.
+- When adding a new canonical answer string to a fixture, update
+  [`TRACKED_FIXTURE_LITERALS`](src/fixtures/tracked-fixture-literals.ts) so
+  `literals-subset-of-tools` and its unit test stay accurate.
+
 ## Agent evals CI and artifacts
 
 The [Agent evals](.github/workflows/evals.yml) workflow is the credentialed

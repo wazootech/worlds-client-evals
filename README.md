@@ -107,6 +107,7 @@ discussion publication with a warning.
 
 ## Evaluation policy
 
+- Full eval-driven iteration loop: [AGENTS.md — Eval iteration](AGENTS.md#eval-iteration).
 - Deterministic assertions are the pass/fail gate. Prefer proofs (SPARQL guard,
   tool descriptions, `@worlds/client` invariants) over new eval code; when tests
   are needed, add a registry `kind` once and wire cases in `src/cases/index.ts`.
