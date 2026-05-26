@@ -132,7 +132,7 @@ export const evalCases: EvalCaseDefinition[] = [
   {
     id: "avoid-excessive-tool-loops",
     description: "Agent avoids excessive tool loops",
-    promptTemplate: `Find the protagonist and house for the work with label "${WORK_SEARCH_LABEL}" using the fewest tool calls needed. First call {{discovery}} with exactly "${WORK_SEARCH_LABEL}". Then use one {{query}} SELECT query: SELECT ?house WHERE { <${WORK_SUBJECT_URI}> <${WAZOO_VOCAB_NAMESPACE}protagonist> ?protagonist . ?protagonist <${WAZOO_VOCAB_NAMESPACE}house> ?house . } The house value is a literal. Answer with the house name.`,
+    promptTemplate: `Find the protagonist and house for the work with label "${WORK_SEARCH_LABEL}" using the fewest tool calls needed. First call {{discovery}} with exactly "${WORK_SEARCH_LABEL}". Then use one {{query}} SELECT query: SELECT ?house WHERE { <${WORK_SUBJECT_URI}> <${WAZOO_VOCAB_NAMESPACE}protagonist> ?protagonist . ?protagonist <${WAZOO_VOCAB_NAMESPACE}house> ?house . } The house value is a literal. Answer with only the exact house literal.`,
     maxSteps: 3,
     assertions: [
       { name: "used-required-tools", kind: "used-required-tools" },
