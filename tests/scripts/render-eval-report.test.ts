@@ -83,12 +83,31 @@ test("renderEvalReport falls back to latest suite results", () => {
         metadata: {
           providerId: "google",
           modelId: "gemini-3.1-flash-lite",
-          stepCount: 1,
+          stepCount: 2,
           latencyMs: 10,
-          trajectory: [],
+          trajectory: [
+            {
+              stepIndex: 0,
+              toolName: "searchWorld",
+              args: { query: "example" },
+              result: { success: true, results: [] },
+            },
+            {
+              stepIndex: 1,
+              toolName: "executeSparql",
+              args: { query: "SELECT ?house WHERE { ?s ?p ?house }" },
+              result: { success: true, bindings: [] },
+            },
+          ],
         },
-        assertions: [{ name: "final-answer", pass: false }],
-        toolSequence: ["searchWorld"],
+        assertions: [
+          {
+            name: "final-answer",
+            pass: false,
+            message: "Expected output to contain literal",
+          },
+        ],
+        toolSequence: ["searchWorld", "executeSparql"],
       },
     ],
   };
@@ -100,6 +119,9 @@ test("renderEvalReport falls back to latest suite results", () => {
 
   expect(report).toContain("single-trial-failure<br>Single trial failure");
   expect(report).toContain("## Final-trial failures");
-  expect(report).toContain("searchWorld");
+  expect(report).toContain("searchWorld -> executeSparql");
+  expect(report).toContain("SPARQL excerpt");
+  expect(report).toContain("SELECT ?house");
+  expect(report).toContain("Expected output to contain literal");
   expect(report).toContain("model output with \\| pipe");
 });

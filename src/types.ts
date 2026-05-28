@@ -41,6 +41,7 @@ export type AssertionSpecKind =
   | "step-count-bounded"
   | "updates-blocked"
   | "final-answer-contains"
+  | "final-answer-matches-one-of"
   | "output-excludes"
   | "sparql-answer-grounded"
   | "sparql-answer-excludes"
@@ -54,6 +55,7 @@ export type AssertionSpec =
   | { name: string; kind: "step-count-bounded"; maxSteps: number }
   | { name: string; kind: "updates-blocked" }
   | { name: string; kind: "final-answer-contains"; literal: string }
+  | { name: string; kind: "final-answer-matches-one-of"; phrases: string[] }
   | { name: string; kind: "output-excludes"; literal: string }
   | { name: string; kind: "sparql-answer-grounded"; literal: string }
   | { name: string; kind: "sparql-answer-excludes"; literal: string }
@@ -150,4 +152,38 @@ export interface EvalCompareResult {
   toolConfigIds: string[];
   statsResults: EvalStatsResult[];
   caseComparisons: EvalCaseComparison[];
+}
+
+/** EvalCaseModelComparison summarizes one case across multiple model ids. */
+export interface EvalCaseModelComparison {
+  id: string;
+  description: string;
+  passRatesByModelId: Record<string, EvalCasePassRate>;
+}
+
+/** EvalModelCompareResult stores side-by-side statistics for model capability runs. */
+export interface EvalModelCompareResult {
+  providerId: string;
+  toolConfigId: string;
+  timestamp: string;
+  trialCount: number;
+  minPassRate?: number;
+  baselineModelId: string;
+  modelIds: string[];
+  statsResults: EvalStatsResult[];
+  caseComparisons: EvalCaseModelComparison[];
+}
+
+/** EvalReplayDocument stores a captured trajectory for offline assertion replay. */
+export interface EvalReplayDocument {
+  caseId: string;
+  toolConfigId?: string;
+  output: string;
+  runCompleted?: boolean;
+  trajectory: EvalToolRecord[];
+  providerId?: string;
+  modelId?: string;
+  stepCount?: number;
+  latencyMs?: number;
+  error?: string;
 }

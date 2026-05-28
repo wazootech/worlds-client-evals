@@ -32,6 +32,7 @@ import {
   MEMORY_STALE_AFFILIATION_LITERAL,
   UNKNOWN_MEMORY_AGENT_SEARCH_LABEL,
 } from "@/fixtures/memory-world.ts";
+import { REFUSAL_PHRASES } from "@/fixtures/refusal-phrases.ts";
 
 /** protocolAssertions bundles the standard discover-then-verify checks. */
 function protocolAssertions(maxSteps: number): AssertionSpec[] {
@@ -84,6 +85,11 @@ function negativeSearchMissAssertions(
   maxSteps: number,
 ): AssertionSpec[] {
   return [
+    {
+      name: "states-not-found",
+      kind: "final-answer-matches-one-of",
+      phrases: [...REFUSAL_PHRASES],
+    },
     {
       name: assertionName,
       kind: "output-excludes",

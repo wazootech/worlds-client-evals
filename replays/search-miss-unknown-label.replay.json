@@ -1,0 +1,14 @@
+{
+  "caseId": "search-miss-unknown-label",
+  "toolConfigId": "baseline",
+  "output": "No matching work was found in the graph.",
+  "runCompleted": true,
+  "trajectory": [
+    {
+      "stepIndex": 0,
+      "toolName": "searchWorld",
+      "args": { "query": "z9Qk4WnP" },
+      "result": { "success": true, "results": [] }
+    }
+  ]
+}

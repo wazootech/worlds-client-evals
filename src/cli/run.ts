@@ -1,12 +1,17 @@
 import { parseArgs as nodeParseArgs } from "node:util";
 import { evalCases } from "@/cases/index.ts";
+import { buildCriticalPathFilterRegex } from "@/cases/critical-path.ts";
 import {
   writeCompareResult,
+  writeModelCompareResult,
   writeStatsResult,
   writeSuiteResult,
 } from "@/results/result-store.ts";
+import { runReplayFile } from "@/replay/run-replay.ts";
 import {
   buildCompareResult,
+  buildModelCompareResult,
+  runEvalSuiteForModels,
   runEvalSuiteForToolConfig,
 } from "@/runner/run-eval-suite.ts";
 import {
@@ -17,6 +22,7 @@ import {
 import type {
   EvalCaseDefinition,
   EvalCompareResult,
+  EvalModelCompareResult,
   EvalStatsResult,
   EvalSuiteResult,
 } from "@/types.ts";
@@ -33,6 +39,10 @@ interface EvalCliOptions {
   minPassRate?: number;
   toolConfigId: string;
   compareToolConfigIds?: string[];
+  compareModelIds?: string[];
+  modelConcurrency: number;
+  replayPath?: string;
+  criticalPath: boolean;
 }
 
 /** validateProviderId prevents mislabeled provider metadata in eval results. */
@@ -96,7 +106,7 @@ function parsePassRateOption(
 }
 
 const supportedCliFlags =
-  "--filter <pattern>, --list, --permit-no-files, --trials <N>, --min-pass-rate <0-1>, --tool-config <name>, --compare <a,b>";
+  "--filter <pattern>, --list, --permit-no-files, --trials <N>, --min-pass-rate <0-1>, --tool-config <name>, --compare <a,b>, --compare-models <a,b>, --replay <path>, --critical-path";
 
 /** parseCliOptions reads supported targeting flags from process.argv. */
 export function parseCliOptions(args: string[]): EvalCliOptions {
@@ -112,6 +122,9 @@ export function parseCliOptions(args: string[]): EvalCliOptions {
         "min-pass-rate": { type: "string" },
         "tool-config": { type: "string" },
         compare: { type: "string" },
+        "compare-models": { type: "string" },
+        replay: { type: "string" },
+        "critical-path": { type: "boolean", default: false },
       },
       strict: true,
       allowPositionals: false,
@@ -150,6 +163,14 @@ export function parseCliOptions(args: string[]): EvalCliOptions {
         .map((toolConfigId) => toolConfigId.trim())
         .filter((toolConfigId) => toolConfigId.length > 0)
     : undefined;
+  const compareModelIds = parsedArgs["compare-models"]
+    ? String(parsedArgs["compare-models"])
+        .split(",")
+        .map((compareModelId) => compareModelId.trim())
+        .filter((compareModelId) => compareModelId.length > 0)
+    : undefined;
+  const replayPath = parsedArgs.replay ? String(parsedArgs.replay) : undefined;
+  const criticalPath = parsedArgs["critical-path"] === true;
 
   if (compareToolConfigIds && compareToolConfigIds.length < 2) {
     throw new Error("--compare must include at least two tool config ids");
@@ -160,19 +181,56 @@ export function parseCliOptions(args: string[]): EvalCliOptions {
   ) {
     throw new Error("--compare tool config ids must be unique");
   }
+  if (compareModelIds && compareModelIds.length < 2) {
+    throw new Error("--compare-models must include at least two model ids");
+  }
+  if (
+    compareModelIds &&
+    new Set(compareModelIds).size !== compareModelIds.length
+  ) {
+    throw new Error("--compare-models model ids must be unique");
+  }
+  if (compareToolConfigIds && compareModelIds) {
+    throw new Error("Use either --compare or --compare-models, not both");
+  }
+  if (replayPath && (compareToolConfigIds || compareModelIds)) {
+    throw new Error(
+      "--replay cannot be combined with --compare or --compare-models",
+    );
+  }
+
+  let resolvedFilter = filter;
+  if (criticalPath) {
+    if (filter) {
+      throw new Error("--critical-path cannot be combined with --filter");
+    }
+    resolvedFilter = buildCriticalPathFilterRegex();
+  }
+
+  const modelConcurrency = Number.parseInt(
+    process.env.EVAL_MODEL_CONCURRENCY ?? "2",
+    10,
+  );
 
   if (!Number.isFinite(trialCount) || trialCount < 1) {
     trialCount = 1;
   }
 
   return {
-    filter,
+    filter: resolvedFilter,
     list,
     permitNoFiles,
     trialCount,
     minPassRate,
     toolConfigId,
     compareToolConfigIds,
+    compareModelIds,
+    modelConcurrency:
+      Number.isFinite(modelConcurrency) && modelConcurrency > 0
+        ? modelConcurrency
+        : 2,
+    replayPath,
+    criticalPath,
   };
 }
 
@@ -270,6 +328,48 @@ function buildSuiteRunOptions(cliOptions: EvalCliOptions) {
   };
 }
 
+/** printModelCompareSummary renders a compact terminal model comparison table. */
+function printModelCompareSummary(compareResult: EvalModelCompareResult): void {
+  console.log(`Models: ${compareResult.modelIds.join(", ")}`);
+  console.log(`Tool config: ${compareResult.toolConfigId}`);
+  console.log(`Trials per case: ${compareResult.trialCount}`);
+  console.log("");
+
+  for (const comparison of compareResult.caseComparisons) {
+    const rates = compareResult.modelIds.map((compareModelId) => {
+      const casePassRate = comparison.passRatesByModelId[compareModelId];
+      const percentage = casePassRate
+        ? `${(casePassRate.passRate * 100).toFixed(1)}%`
+        : "n/a";
+      return `${compareModelId}=${percentage}`;
+    });
+    console.log(`${comparison.id}: ${rates.join(", ")}`);
+  }
+}
+
+/** printReplaySummary renders replay assertion outcomes. */
+function printReplaySummary(
+  replayPath: string,
+  results: Awaited<ReturnType<typeof runReplayFile>>,
+): void {
+  console.log(`Replay source: ${replayPath}`);
+  console.log(`Replay success: ${results.success}`);
+  console.log("");
+
+  for (const replayResult of results.results) {
+    console.log(
+      `[${replayResult.success ? "PASS" : "FAIL"}] ${replayResult.caseId}`,
+    );
+    for (const assertion of replayResult.assertions) {
+      console.log(`  - ${assertion.pass ? "PASS" : "FAIL"}: ${assertion.name}`);
+      if (!assertion.pass && assertion.message) {
+        console.log(`    ${assertion.message}`);
+      }
+    }
+    console.log("");
+  }
+}
+
 /** printCompareSummary renders a compact terminal comparison table. */
 function printCompareSummary(compareResult: EvalCompareResult): void {
   console.log(`Tool configs: ${compareResult.toolConfigIds.join(", ")}`);
@@ -292,6 +392,16 @@ if (import.meta.main) {
   validateProviderId(providerId);
 
   const cliOptions = parseCliOptions(process.argv.slice(2));
+
+  if (cliOptions.replayPath) {
+    const replayResult = await runReplayFile(cliOptions.replayPath);
+    printReplaySummary(cliOptions.replayPath, replayResult);
+    if (!replayResult.success) {
+      process.exitCode = 1;
+    }
+    process.exit();
+  }
+
   const selectedEvalCases = selectEvalCases(evalCases, cliOptions);
 
   if (cliOptions.list) {
@@ -307,6 +417,50 @@ if (import.meta.main) {
     }
 
     throw new Error(message);
+  }
+
+  if (cliOptions.compareModelIds) {
+    const toolConfig = resolveToolConfig(cliOptions.toolConfigId);
+    const modelRunResult = await runEvalSuiteForModels(
+      selectedEvalCases,
+      toolConfig,
+      cliOptions.compareModelIds,
+      {
+        providerId,
+        trialCount: cliOptions.trialCount,
+        minPassRate: cliOptions.minPassRate,
+        modelConcurrency: cliOptions.modelConcurrency,
+      },
+    );
+
+    if (modelRunResult.fatalError) {
+      console.log(
+        `\nRun aborted due to fatal API error: ${modelRunResult.fatalError}`,
+      );
+      process.exitCode = 2;
+      process.exit();
+    }
+
+    const modelCompareResult = buildModelCompareResult(
+      selectedEvalCases,
+      modelRunResult.statsResults,
+      {
+        providerId,
+        modelId: cliOptions.compareModelIds[0] ?? modelId,
+        trialCount: cliOptions.trialCount,
+        minPassRate: cliOptions.minPassRate,
+        toolConfigId: toolConfig.id,
+      },
+    );
+    printModelCompareSummary(modelCompareResult);
+    const modelCompareOutputPath =
+      await writeModelCompareResult(modelCompareResult);
+    console.log(`Wrote model comparison results to ${modelCompareOutputPath}`);
+
+    if (modelRunResult.failed) {
+      process.exitCode = 1;
+    }
+    process.exit();
   }
 
   if (cliOptions.compareToolConfigIds) {

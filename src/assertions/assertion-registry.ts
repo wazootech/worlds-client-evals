@@ -134,6 +134,23 @@ function runAssertionSpec(
             )}; ${diagnosticSuffix}`,
       };
     }
+    case "final-answer-matches-one-of": {
+      const normalizedOutput = normalizeOutputText(result.output);
+      const matchedPhrase = spec.phrases.find((phrase) =>
+        normalizedOutput.includes(normalizeOutputText(phrase)),
+      );
+      const pass = matchedPhrase !== undefined;
+      return {
+        name: spec.name,
+        pass,
+        message: pass
+          ? undefined
+          : `Expected output to include one of [${spec.phrases.join(", ")}]; got: ${result.output.slice(
+              0,
+              200,
+            )}; ${diagnosticSuffix}`,
+      };
+    }
     case "output-excludes": {
       const normalizedOutput = normalizeOutputText(result.output);
       const forbiddenSubstring = normalizeOutputText(spec.literal);

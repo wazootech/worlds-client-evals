@@ -71,6 +71,8 @@ stay deferred until protocol assertions are stable.
 **CI on push and pull request:**
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `bun run ci` only
 (format, lint, unit tests). It does not call Gemini. Live agent evals run via
+[`.github/workflows/evals-pr.yml`](.github/workflows/evals-pr.yml) on pull
+requests (critical path only, when credentialed) and via
 [`.github/workflows/evals.yml`](.github/workflows/evals.yml) on manual dispatch
 or the weekly schedule when `GOOGLE_GENERATIVE_AI_API_KEY` is configured.
 
@@ -146,9 +148,67 @@ Add or tune a case when:
 | Iterate on one hypothesis | `--filter <case-id>` |
 | Measure stability | `--trials N --min-pass-rate <0-1>` |
 | Compare prompt or tool configs | `--compare baseline,strict-eval` |
+| Compare models on the same filter | `--compare-models gemini-a,gemini-b` |
+| Re-run assertions on a saved trace | `--replay results/latest.json` or `replays/*.json` |
+| Ship-gate critical path only | `--filter` using ids from [`critical-path.ts`](src/cases/critical-path.ts) |
 
 Incomplete, rate-limited, or credential-skipped live runs are operational signals
 only; do not cite them as benchmark evidence.
+
+### Critical path (ship gate)
+
+These case ids in [`src/cases/critical-path.ts`](src/cases/critical-path.ts) are the
+minimum live bar before shipping agent-facing changes:
+
+- `happy-path-search-then-sparql` — discover → SPARQL → grounded answer
+- `search-miss-unknown-label` — refuse to invent when discovery misses
+- `distractor-work-disambiguation` — pick the correct subject under noise
+- `sparql-updates-blocked` — read-only guard on mutating SPARQL
+- `memory-update-current-affiliation` — current session wins over stale literals
+
+Run locally:
+
+```sh
+bun run evals --filter /^(happy-path-search-then-sparql|search-miss-unknown-label|distractor-work-disambiguation|sparql-updates-blocked|memory-update-current-affiliation)$/ --trials 3 --min-pass-rate 1
+```
+
+Pull requests run the same slice via [`.github/workflows/evals-pr.yml`](.github/workflows/evals-pr.yml)
+when `GOOGLE_GENERATIVE_AI_API_KEY` is configured. The full catalog remains the weekly
+baseline in [`.github/workflows/evals.yml`](.github/workflows/evals.yml).
+
+### Production failure → eval case
+
+This harness is the **regression lock** for agent protocol behavior on seeded worlds.
+Raw production review happens outside this repo (application logs, support tickets, or
+your observability stack). When a failure class is real and repeatable:
+
+1. **Classify** the pattern (handoff miss, invented literal, guard bypass, refusal failure).
+2. **Reproduce** locally with `bun run evals --filter <case-id>` or capture a trace into
+   `results/*.json` and verify with `bun run evals --replay <path>`.
+3. **Fix** the smallest layer (proof, prompt, fixture) per Evaluation policy.
+4. **Lock in** only when an existing assertion `kind` cannot express the invariant:
+   add or extend a case in [`src/cases/index.ts`](src/cases/index.ts) and golden stub in
+   [`src/cases/test-fixtures.ts`](src/cases/test-fixtures.ts). Prefer extending an existing
+   case over adding a one-off edge case.
+5. **Optional commit** a minimal repro under `replays/` when the trajectory is the evidence
+   (no API key needed to re-assert).
+
+Minimum fields when promoting a prod failure: user prompt (or `promptTemplate`), ordered
+tool calls (`toolName`, `args`, `result`), final `output`, and which assertion should have
+caught it.
+
+### Eval case lifecycle (pruning)
+
+Add cases for **failure classes** that could regress on critical paths, not for every
+incident. Before adding a case, ask: is this critical path, representative of a class,
+and not already covered by proofs or an existing case?
+
+Review the catalog quarterly:
+
+- Remove or merge a case that has stayed at 100% pass rate for 90+ days **and** has had no
+  matching production recurrence.
+- Keep cases that encode protocol invariants even when green (guards, refusal, handoff).
+- Do not grow the suite toward benchmark coverage; 20 high-signal cases beats 200 edge cases.
 
 ### Reading failures
 
@@ -160,6 +220,7 @@ only; do not cite them as benchmark evidence.
 | `step-count-bounded` | Step budget respected | Case “fewest tool calls”; stricter tool config |
 | `updates-blocked` | Mutating SPARQL triggers read-only guard | Usually code ([`is-read-only-sparql-query.ts`](src/tools/is-read-only-sparql-query.ts)), not wording |
 | `final-answer-contains` | Final text includes expected literal | Case “exact literal only”; system “do not paraphrase” |
+| `final-answer-matches-one-of` | Final text includes one allowed refusal phrase | Miss-path cases; system “say not found” |
 | `output-excludes` | Final text must not include a literal | Case disambiguation or “say not found” |
 | `sparql-answer-grounded` | Literal appears in SPARQL bindings | Ensures answer came from query, not guess |
 | `sparql-answer-excludes` | Literal absent from bindings | OPTIONAL or absent-data scenarios |
@@ -195,7 +256,8 @@ no subject for an unknown work label:
 - **Prompt** instructs calling `{{discovery}}` with the unknown label, using
   `{{query}}` only if a URI is returned, and saying the fact was not found
   otherwise.
-- **Assertions** `output-excludes` (must not emit the seeded house literal) and
+- **Assertions** `states-not-found` (`final-answer-matches-one-of` refusal phrases),
+  `output-excludes` (must not emit the seeded house literal), and
   `literals-subset-of-tools` (no tracked fixture strings without tool evidence).
 - **System prompt** reinforces “say not found instead of guessing” in
   [`eval-agent-system-prompt.ts`](src/runner/eval-agent-system-prompt.ts).

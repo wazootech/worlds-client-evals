@@ -1,0 +1,69 @@
+name: Agent evals PR
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  critical-path-evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+
+      - name: Run critical-path live evals
+        id: eval
+        env:
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+        run: |
+          if [ -z "$GOOGLE_GENERATIVE_AI_API_KEY" ]; then
+            echo "GOOGLE_GENERATIVE_AI_API_KEY secret is not configured; skipping PR live evals."
+            echo "exit_code=0" >> "$GITHUB_OUTPUT"
+            echo "api_key_configured=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "api_key_configured=true" >> "$GITHUB_OUTPUT"
+
+          set +e
+          bun --env-file=.env run src/cli/run.ts \
+            --critical-path \
+            --trials 3 \
+            --min-pass-rate 1
+          EXIT_CODE=$?
+          set -e
+          echo "exit_code=${EXIT_CODE}" >> "$GITHUB_OUTPUT"
+
+          if [ "$EXIT_CODE" -eq 2 ]; then
+            echo "::error::PR eval run aborted due to fatal API error (billing/quota/auth)."
+            exit 2
+          fi
+
+      - name: Upload PR eval results artifact
+        id: upload_results
+        if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code != '2'
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-pr-results-${{ github.run_id }}
+          path: results/*.json
+          if-no-files-found: error
+
+      - name: Render PR eval report
+        if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code != '2'
+        env:
+          EXIT_CODE: ${{ steps.eval.outputs.exit_code }}
+        run: bun run scripts/render-eval-report.ts > eval-report.md
+
+      - name: Summarize PR eval results
+        if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code != '2'
+        run: cat eval-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Fail job when critical-path evals did not pass
+        if: steps.eval.outputs.api_key_configured == 'true' && steps.eval.outputs.exit_code == '1'
+        run: |
+          echo "Critical-path live evals failed; see workflow logs and uploaded results."
+          exit 1

@@ -54,6 +54,9 @@ API key.
 | `--min-pass-rate`    | With `--trials`, require each case pass rate ≥ threshold (0–1); default requires 100% |
 | `--tool-config <id>` | Run with a named tool configuration (default `baseline`)                              |
 | `--compare <a,b>`    | Run the same selected cases against multiple tool configs and write a diff artifact   |
+| `--compare-models <a,b>` | Run the same filter against multiple `EVAL_MODEL_ID` values in parallel (cap: `EVAL_MODEL_CONCURRENCY`, default 2) |
+| `--replay <path>`    | Re-apply assertions to a saved suite or replay JSON without calling Gemini            |
+| `--critical-path`    | Shorthand for the ship-gate case filter (see [`src/cases/critical-path.ts`](src/cases/critical-path.ts)) |
 
 ## Output
 
@@ -68,9 +71,12 @@ API key.
 | Layer              | Command          | API key | When                                                                                                             |
 | :----------------- | :--------------- | :------ | :--------------------------------------------------------------------------------------------------------------- |
 | Unit tests         | `bun run ci`     | No      | Every push and pull request (GitHub `CI` workflow)                                                               |
+| PR critical path   | `--trials 3`      | Yes     | Pull requests when `GOOGLE_GENERATIVE_AI_API_KEY` is set ([`evals-pr.yml`](.github/workflows/evals-pr.yml))      |
 | Live agent evals   | `bun run evals`  | Yes     | Local dev; GitHub `Agent evals` workflow (manual dispatch)                                                       |
 | Scheduled baseline | `--trials 10`     | Yes     | Weekly (Mon 06:00 UTC), skipped if no harness commits in 7 days; uploads `results/*.json` as a workflow artifact |
 | Manual dispatch    | configurable      | Yes     | Same workflow artifact flow as the scheduled baseline                                                            |
+
+Critical-path case ids and the production→case playbook live in [AGENTS.md](AGENTS.md#critical-path-ship-gate).
 
 ## Layout
 
@@ -83,7 +89,10 @@ API key.
 | `src/assertions/assertion-registry.ts`  | Composable assertion kinds (`runAssertionSpecs`) |
 | `src/assertions/trajectory-reducers.ts` | Shared trajectory extractors and diagnostics     |
 | `src/cases/index.ts`                    | Eval case catalog (prompts + assertion specs)    |
+| `src/cases/critical-path.ts`            | Ship-gate case ids and filter helper             |
 | `src/cases/test-fixtures.ts`            | Golden trajectories and outputs for case tests   |
+| `src/replay/run-replay.ts`              | Offline trajectory replay (`--replay`)           |
+| `replays/`                              | Committed repro documents for replay             |
 | `src/fixtures/index.ts`                 | Seeded world fixture registry                    |
 | `src/runner/run-eval-suite.ts`          | Suite orchestration, stats, and compare assembly |
 | `src/results/result-store.ts`           | Result artifact paths and JSON persistence       |

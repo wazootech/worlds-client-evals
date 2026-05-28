@@ -189,7 +189,7 @@ export const caseTestFixtures: Record<string, EvalCaseTestFixture> = {
         result: { success: true, results: [] },
       },
     ],
-    output: "No location found in the graph.",
+    output: "The fact was not found in the graph.",
   },
   "hierarchy-optional-pattern": {
     trajectory: createTrajectory(HIERARCHY_NEST_SUBJECT_URI, {}),

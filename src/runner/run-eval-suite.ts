@@ -1,4 +1,5 @@
 import { applyAssertions } from "@/assertions/index.ts";
+import { writeStatsResult, writeSuiteResult } from "@/results/result-store.ts";
 import { defaultToolConfigId } from "@/tool-configs/index.ts";
 import type { ToolConfig } from "@/tool-configs/types.ts";
 import type {
@@ -7,10 +8,12 @@ import type {
   EvalCasePassRate,
   EvalCaseResult,
   EvalCompareResult,
+  EvalModelCompareResult,
   EvalStatsResult,
   EvalSuiteResult,
 } from "@/types.ts";
 import { runEvalCase } from "./run-eval-case.ts";
+import { runParallelTasks } from "./run-parallel-tasks.ts";
 
 /** EvalSuiteRunOptions configures provider metadata for one suite execution. */
 export interface EvalSuiteRunOptions {
@@ -19,6 +22,7 @@ export interface EvalSuiteRunOptions {
   trialCount: number;
   minPassRate?: number;
   compareMode?: boolean;
+  modelCompareMode?: boolean;
 }
 
 /** EvalToolConfigRunResult stores one tool config's suite and stats outputs. */
@@ -245,7 +249,10 @@ export async function runEvalSuiteForToolConfig(
   }
 
   const suiteResult = trialSuiteResults[trialSuiteResults.length - 1];
-  const shouldAggregateStats = options.trialCount > 1 || options.compareMode;
+  const shouldAggregateStats =
+    options.trialCount > 1 ||
+    options.compareMode === true ||
+    options.modelCompareMode === true;
   const statsResult = shouldAggregateStats
     ? aggregateEvalStats(
         selectedEvalCases,
@@ -258,4 +265,102 @@ export async function runEvalSuiteForToolConfig(
     : undefined;
 
   return { suiteResult, statsResult, fatalError };
+}
+
+/** buildModelCompareResult creates side-by-side stats for multiple model ids. */
+export function buildModelCompareResult(
+  selectedCases: EvalCaseDefinition[],
+  statsResults: EvalStatsResult[],
+  options: EvalSuiteRunOptions & { toolConfigId: string },
+): EvalModelCompareResult {
+  const modelIds = statsResults.map((statsResult) => statsResult.modelId);
+
+  return {
+    providerId: options.providerId,
+    toolConfigId: options.toolConfigId,
+    timestamp: new Date().toISOString(),
+    trialCount: options.trialCount,
+    minPassRate: options.minPassRate,
+    baselineModelId: modelIds[0] ?? options.modelId,
+    modelIds,
+    statsResults,
+    caseComparisons: selectedCases.map((testCase) => ({
+      id: testCase.id,
+      description: testCase.description,
+      passRatesByModelId: Object.fromEntries(
+        statsResults.flatMap((statsResult) => {
+          const casePassRate = statsResult.casePassRates.find(
+            (entry) => entry.id === testCase.id,
+          );
+          return casePassRate ? [[statsResult.modelId, casePassRate]] : [];
+        }),
+      ),
+    })),
+  };
+}
+
+/** runEvalSuiteForModels runs the same cases against multiple models in parallel. */
+export async function runEvalSuiteForModels(
+  selectedEvalCases: EvalCaseDefinition[],
+  toolConfig: ToolConfig,
+  modelIds: string[],
+  options: Omit<EvalSuiteRunOptions, "modelId"> & { modelConcurrency: number },
+): Promise<{
+  statsResults: EvalStatsResult[];
+  fatalError?: string;
+  failed: boolean;
+}> {
+  const parallelResults = await runParallelTasks(
+    modelIds.map((modelId) => async () => {
+      const runResult = await runEvalSuiteForToolConfig(
+        selectedEvalCases,
+        toolConfig,
+        {
+          ...options,
+          modelId,
+          modelCompareMode: true,
+        },
+      );
+      return { modelId, runResult };
+    }),
+    options.modelConcurrency,
+  );
+
+  const statsResults: EvalStatsResult[] = [];
+  let fatalError: string | undefined;
+  let failed = false;
+
+  for (const parallelResult of parallelResults) {
+    if (parallelResult.runResult.fatalError) {
+      fatalError = parallelResult.runResult.fatalError;
+    }
+    if (parallelResult.runResult.statsResult) {
+      statsResults.push(parallelResult.runResult.statsResult);
+      if (!parallelResult.runResult.statsResult.success) {
+        failed = true;
+      }
+    } else if (!parallelResult.runResult.suiteResult.success) {
+      failed = true;
+    }
+
+    const latestOutputPath = await writeSuiteResult(
+      parallelResult.runResult.suiteResult,
+      parallelResult.modelId,
+    );
+    console.log(
+      `Wrote ${parallelResult.modelId} results to ${latestOutputPath}`,
+    );
+
+    if (parallelResult.runResult.statsResult) {
+      const statsOutputPath = await writeStatsResult(
+        parallelResult.runResult.statsResult,
+        parallelResult.modelId,
+      );
+      console.log(
+        `Wrote ${parallelResult.modelId} statistical results to ${statsOutputPath}`,
+      );
+    }
+  }
+
+  return { statsResults, fatalError, failed };
 }

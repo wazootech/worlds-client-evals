@@ -154,6 +154,27 @@ export function collectToolOutputLiterals(
   return [...literalSet];
 }
 
+/** extractFirstSparqlQueryExcerpt returns a compact SPARQL args preview from a trajectory. */
+export function extractFirstSparqlQueryExcerpt(
+  trajectory: EvalToolRecord[],
+  queryToolName: string,
+  maxLength = 160,
+): string {
+  const sparqlStep = trajectory.find(
+    (record) => record.toolName === queryToolName,
+  );
+  if (!sparqlStep) {
+    return "(no SPARQL call)";
+  }
+
+  const serializedArgs = JSON.stringify(sparqlStep.args ?? {});
+  if (serializedArgs.length <= maxLength) {
+    return serializedArgs;
+  }
+
+  return `${serializedArgs.slice(0, maxLength - 3)}...`;
+}
+
 /** formatTrajectoryDiagnostic summarizes tool usage for assertion failure messages. */
 export function formatTrajectoryDiagnostic(result: EvalCaseResult): string {
   const toolSequence = result.metadata.trajectory

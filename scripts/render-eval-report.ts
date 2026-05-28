@@ -1,7 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { extractFirstSparqlQueryExcerpt } from "@/assertions/trajectory-reducers.ts";
 import { buildTable, formatPercent } from "@/reporting/markdown-table.ts";
 import { synthesizeStatsFromSuite } from "@/runner/run-eval-suite.ts";
+import {
+  defaultToolConfigId,
+  resolveToolConfig,
+} from "@/tool-configs/index.ts";
 import type {
   EvalAssertionPassRate,
   EvalCasePassRate,
@@ -200,24 +205,38 @@ function buildFinalFailureRows(
     return [];
   }
 
+  const queryToolName = resolveToolConfig(
+    suiteResult.toolConfigId ?? defaultToolConfigId,
+  ).queryName;
+
   return suiteResult.results
     .filter((caseResult: EvalCaseResult) => !caseResult.success)
     .map((caseResult) => {
-      const failedAssertions = caseResult.assertions
+      const failedAssertionDetails = caseResult.assertions
         .filter((assertion) => !assertion.pass)
-        .map((assertion) => assertion.name)
-        .join(", ");
+        .map((assertion) => {
+          if (assertion.message) {
+            return `${assertion.name}: ${assertion.message}`;
+          }
+          return assertion.name;
+        })
+        .join(" | ");
       const toolSequence =
         caseResult.toolSequence.length > 0
           ? caseResult.toolSequence.join(" -> ")
           : "(none)";
+      const sparqlExcerpt = extractFirstSparqlQueryExcerpt(
+        caseResult.metadata.trajectory,
+        queryToolName,
+      );
       const diagnosticExcerpt =
         caseResult.error || caseResult.output || "(empty)";
 
       return [
         caseResult.id,
-        failedAssertions || "(none)",
+        truncateCell(failedAssertionDetails || "(none)"),
         toolSequence,
+        truncateCell(sparqlExcerpt),
         truncateCell(diagnosticExcerpt),
       ];
     });
@@ -352,7 +371,13 @@ export function renderEvalReport(input: EvalReportInput): string {
     reportSections.push("## Final-trial failures");
     reportSections.push(
       buildTable(
-        ["Case", "Failed assertions", "Tools", "Error/output"],
+        [
+          "Case",
+          "Failed assertions",
+          "Tools",
+          "SPARQL excerpt",
+          "Error/output",
+        ],
         finalFailureRows,
       ),
     );

@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type {
   EvalCompareResult,
+  EvalModelCompareResult,
   EvalStatsResult,
   EvalSuiteResult,
 } from "@/types.ts";
@@ -65,6 +66,20 @@ export async function writeCompareResult(
   const outputPath = join(
     resultsDirectory,
     buildResultFileName("compare", result.toolConfigIds.join("-vs-")),
+  );
+  await mkdir(resultsDirectory, { recursive: true });
+  await writeFile(outputPath, JSON.stringify(result, null, 2), "utf8");
+  return outputPath;
+}
+
+/** writeModelCompareResult persists side-by-side model comparison data. */
+export async function writeModelCompareResult(
+  result: EvalModelCompareResult,
+): Promise<string> {
+  const resultsDirectory = resolveResultsDirectory();
+  const outputPath = join(
+    resultsDirectory,
+    buildResultFileName("compare-models", result.modelIds.join("-vs-")),
   );
   await mkdir(resultsDirectory, { recursive: true });
   await writeFile(outputPath, JSON.stringify(result, null, 2), "utf8");
