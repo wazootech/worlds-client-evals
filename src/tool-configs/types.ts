@@ -1,4 +1,4 @@
-import type { Client } from "@worlds/client";
+import type { ClientInterface } from "@worlds/sdk";
 import type { ToolSet } from "ai";
 
 /** ToolConfig describes one named tool set that can run the eval suite. */
@@ -10,5 +10,5 @@ export interface ToolConfig {
   requiredToolNames: string[];
   guardErrorSubstring?: string;
   systemPromptAdditions?: string;
-  factory: (client: Client) => ToolSet;
+  factory: (client: ClientInterface) => ToolSet;
 }

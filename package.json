@@ -14,9 +14,10 @@
     "@ai-sdk/google": "^3.0.79",
     "@comunica/query-sparql-rdfjs-lite": "^5.2.2",
     "@libsql/client": "^0.17.3",
-    "@worlds/client": "npm:@jsr/worlds__client@^0.0.14",
     "ai": "^6.0.191",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@worlds/sdk": "npm:@jsr/worlds__sdk@^0.1.0",
+    "@worlds/libsql": "npm:@jsr/worlds__libsql@^0.0.2"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.15",

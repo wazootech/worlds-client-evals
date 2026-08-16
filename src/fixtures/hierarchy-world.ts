@@ -1,8 +1,7 @@
 import { createClient } from "@libsql/client";
 import { QueryEngine } from "@comunica/query-sparql-rdfjs-lite";
-import { Client } from "@worlds/client";
-import { ComunicaSparqlEngine } from "@worlds/client/adapters/comunica";
-import { createLibsqlClientOptions } from "@worlds/client/adapters/libsql";
+import { createLibsqlClient } from "@worlds/libsql";
+import type { ClientInterface } from "@worlds/sdk";
 
 import { GENID_BASE, WAZOO_VOCAB_NAMESPACE } from "./constants.ts";
 
@@ -45,16 +44,13 @@ const SEEDED_HIERARCHY_DATA = `
 `;
 
 /** createSeededHierarchyWorldClient builds a fresh in-memory world with the hierarchy graph. */
-export async function createSeededHierarchyWorldClient(): Promise<Client> {
+export async function createSeededHierarchyWorldClient(): Promise<ClientInterface> {
   const libsqlClient = createClient({ url: ":memory:" });
   const queryEngine = new QueryEngine();
-  const client = new Client(
-    await createLibsqlClientOptions({
-      client: libsqlClient,
-      createSparqlEngine: ({ libsqlStore }) =>
-        new ComunicaSparqlEngine({ queryEngine, store: libsqlStore }),
-    }),
-  );
+  const client = await createLibsqlClient({
+    client: libsqlClient,
+    queryEngine,
+  });
 
   await client.import({
     source: {

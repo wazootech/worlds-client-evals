@@ -1,9 +1,9 @@
 # worlds-client-evals
 
-AI agent evaluation harness for `@worlds/client`. Runs deterministic assertion
+AI agent evaluation harness for `@worlds/sdk`. Runs deterministic assertion
 checks and live model trials against a seeded in-memory LibSQL world.
 
-This repository is a **consumer** of the `@worlds/client` package. It tests
+This repository is a **consumer** of the `@worlds/sdk` package. It tests
 whether an AI agent can successfully use the client's public API (`search`,
 `sparql`, `import`) through AI SDK tool adapters.
 
@@ -16,7 +16,7 @@ guard enforcement through deterministic code checks rather than LLM judging.
 ## Quickstart
 
 ```bash
-# Install dependencies (Bun runs npm lifecycle scripts for @worlds/client TensorFlow hooks)
+# Install dependencies (Bun runs npm lifecycle scripts for @worlds/sdk TensorFlow hooks)
 bun install
 
 # Run unit tests (no API key needed)
@@ -109,7 +109,7 @@ discussion publication with a warning.
 
 - Full eval-driven iteration loop: [AGENTS.md — Eval iteration](AGENTS.md#eval-iteration).
 - Deterministic assertions are the pass/fail gate. Prefer proofs (SPARQL guard,
-  tool descriptions, `@worlds/client` invariants) over new eval code; when tests
+  tool descriptions, `@worlds/sdk` invariants) over new eval code; when tests
   are needed, add a registry `kind` once and wire cases in `src/cases/index.ts`.
   See [AGENTS.md](AGENTS.md) for the full proof-vs-test policy.
 - Generated trajectories are external artifacts, not source-controlled history.
