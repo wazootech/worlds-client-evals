@@ -1,5 +1,13 @@
 # worlds-client-evals
 
+> [!IMPORTANT]
+> **Archived — read-only.** This repository is archived and no longer
+> maintained, and its issue/PR trackers are locked. Agent evaluation and memory
+> benchmarking now lives in the Wazoo organization — see
+> [github.com/wazootech](https://github.com/wazootech), in particular
+> [wazoo-memorybench](https://github.com/wazootech/wazoo-memorybench), for our
+> most up-to-date eval efforts.
+
 AI agent evaluation harness for `@worlds/client`. Runs deterministic assertion
 checks and live model trials against a seeded in-memory LibSQL world.
 
